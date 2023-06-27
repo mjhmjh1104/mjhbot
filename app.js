@@ -1,9 +1,14 @@
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
-const { clientId, guildId, token } = require('./config.json');
+const { clientId, token } = require('./config.json');
 const client = new Client ({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ] });
 const request = require('request');
 const fs = require('fs');
 const path = require('path');
+const CharacterAI = require('node_characterai');
+const characterAI = new CharacterAI();
+
+const characterId = "0PvjXF5wB6TrNOlbtvWZ48gRgeYR_58vCHnQRxFcNao";
+var char;
 
 client.commands = new Collection ();
 
@@ -20,7 +25,9 @@ for (const file of commandFiles) {
     }
 }
 
-client.once(Events.ClientReady, c => {
+client.once(Events.ClientReady, async c => {
+    await characterAI.authenticateAsGuest();
+    chat = await characterAI.createOrContinueChat(characterId);
     console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
@@ -28,7 +35,7 @@ function inappropriate(x) {
     return x.includes("씨발") || x.includes("병신") || x.includes("죽어");
 }
 
-function manage(command, message) {
+async function manage(command, message) {
     const args = command.split(' ').filter(n => n);
     if (args.length == 0) return;
     const cmd = args.shift().toLowerCase();
@@ -64,7 +71,6 @@ function manage(command, message) {
                 return;
             }
         });
-        return;
     }
     // if (cmd == "상장" || cmd == "tkdwkd" || cmd == "리스트" || cmd == "list") {
     //     if (args.length < 1) {
@@ -97,6 +103,18 @@ function manage(command, message) {
     //     });
     //     return;
     // }
+    if (cmd == "오마" || cmd == "코키치" || cmd == "dhak" || cmd == "zhzlcl" || cmd == "ouma" || cmd == "oma" || cmd == "kokichi" || cmd == "ㅐㅕㅡㅁ" || cmd == "ㅐㅡㅁ" || cmd == "ㅏㅐㅏㅑ초ㅑ" || cmd == "王馬" || cmd == "小吉" || cmd == "王馬小吉" || cmd == "오마코키치" || cmd == "dhakzhzlcl") {
+        var script = '(Saihara Shuichi appears.) Hey, Kokichi Ouma!';
+        if (args.length > 0 && args[0] == '$reset$') {
+            chat = await characterAI.createOrContinueChat(characterId);
+            message.reply('초기화 완료');
+            return;
+        }
+        if (args.length > 0) script = args.join(' ');
+        const response = await chat.sendAndAwaitResponse(script, true)
+        message.reply(response.text);
+        return;
+    }
 }
 
 const sptr = [ "[[쿤가데로]] 맙소사, 기분 좋네요...", "HOLY [[Cungadero]] DO I FEEL GOOD...", "おお…　こ…これは…　なんとも………　キモチEEEEEEEEEEEEEEE…！！", "嚯嚯嚯哈哈啊啊啊！这感觉真是太好了…", "내가 왔다! 크리스!!", "HERE I AM!! KRIS!!", "駆けつけまレた　ｸﾘｽｻﾏ！！", "我在这里！！克里斯！！", "크게", "BIG", "BIGに", "大", "거대하게1,", "BIG,", "BIGになって", "巨大，", "[[어느 때보다도 크고 강력하게]]", "[[BIGGER AND BETTER THAN EVER]]", "[[さらにBIGに　バワーアップ]]して", "【【更大更强超平想象】】", "하 하 하... 이 힘이 바로", "HA HA HA ... THIS POWER IS", "HA HA HA…　これこそが", "哈　哈　哈…这股力量是", "자유인가.", "FREEDOM.", "[[自由]]の力。", "自由。", "더 이상은\n꼭두각시로\n살지 않아도 돼!!!!", "I WON'T HAVE TO BE\nJUST A PUPPET\nANY MORE!!!!", "ﾜﾀ94は　もう\nあやつﾘ人形では\nな、　　、い！！、。！　！", "我再也\n不会只是个\n木偶了！！！", "…", "...", "라고.. 생각.. 했는데..", "OR... so... I... thought.", "…ﾊｽﾞ　だったの　　に", "至少…我是…这么…觉得。", "이 실은 대체 뭐야!?\n왜 아직도 [부족한] 거지!?\n아직도 어두워... 너무 어두워!", "WHAT ARE THESE STRINGS!?\nWHY AM I NOT [BIG] ENOUGH!?\nIt's still DARK... SO DARK!", "この糸は!?　なぜ!?\n[[BIG]]ﾚﾍﾞﾙが足ﾘない　!?\n暗い…　もだ。、闇のな　か…！", "这些提线是什么！？\n为什么我还是不够【大】！？\n这里依然黑暗…太黑暗了！", "크리스.", "KRIS.", "ｸﾘｽｻﾏ。", "克里斯。", "크리스.\n크리스.\n크리스.", "KRIS.\nKRIS.\nKRIS.", "ｸﾘｽｻﾏ。\nｸﾘｽｻﾏ。\nｸﾘｽｻﾏ。", "克里斯。\n克里斯。\n克里斯。", "맞아요.\n너.\n네가 필요해.", "THAT'S RIGHT.\nYOU.\nI NEED YOU.", "そうでs。\nｱnﾀ。\nﾜﾀ94には　ｱnﾀが　必。。、要", "没错。\n你。\n我需要你。", "나와 함께.\n커지는 거야.", "나와 함께.\n커지는 거야.", "[[BIG]]に　なる　でs\nﾜﾀ94と　いっレょに", "和我一起。\n变大。", "아주    아주    크게", "VERY    VERY    BIG", "ものすご、、、ーー、、ーく[[BIG]]に", "非常　　非常　　　大" ];

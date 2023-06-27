@@ -51,6 +51,11 @@ client.on(Events.MessageCreate, message => {
     else if (message.content.includes('스팸톤') || message.content.toLowerCase().includes('spamton') || message.content.includes("スパムトン")) chan.send(getSpamton());
     if (message.content.includes('귀여워') || message.content.includes('귀엽다') || message.content.includes('ㄱㅇㅇ') || message.content.includes('게이')) message.react('↖');
     if (message.content.includes('갈')) message.react('1011628426391724052');
+    if (message.content.includes('성호')) {
+        message.react('1076509964820041798');
+        message.react('1076510046768336977');
+        message.react('1076510140280356885');
+    }
 });
 
 client.on('messageReactionAdd', (reaction, user) => {

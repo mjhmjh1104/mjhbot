@@ -30,10 +30,10 @@ const prefix = 'mb ';
 
 client.on(Events.MessageCreate, message => {
     if (message.author.bot) return;
-    if (inappropriate(message.content)) {
-        message.delete();
-        return;
-    }
+    // if (inappropriate(message.content)) {
+    //     message.delete();
+    //     return;
+    // }
     const chan = client.channels.cache.get(message.channelId);
     if (message.content.startsWith(prefix)) {
         manage(message.content.slice(prefix.length), chan);
@@ -49,10 +49,12 @@ client.on(Events.MessageCreate, message => {
     else if (message.content.includes('天安門')) chan.send('我愛北京天安門\n天安門上太陽昇\n偉大領袖毛主席\n指引我們向前進');
     else if (message.content == '대' || message.content.includes('大')) chan.send('大星昊');
     else if (message.content.includes('스팸톤') || message.content.toLowerCase().includes('spamton') || message.content.includes("スパムトン")) chan.send(getSpamton());
+    if (message.content.includes('귀여워') || message.content.includes('귀엽다') || message.content.includes('ㄱㅇㅇ') || message.content.includes('게이')) message.react('↖');
+    if (message.content.includes('갈')) message.react('1011628426391724052');
 });
 
 client.on('messageReactionAdd', (reaction, user) => {
-    if (reaction._emoji.name == '🖕') reaction.remove(user);
+    // if (reaction._emoji.name == '🖕') reaction.remove(user);
 });
 
 client.login(token);

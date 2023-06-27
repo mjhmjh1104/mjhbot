@@ -1,6 +1,7 @@
 const { Client, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
 const client = new Client({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ] });
+const request = require('request');
 
 client.once(Events.ClientReady, c => {
     console.log(`Ready! Logged in as ${c.user.tag}`);
@@ -10,12 +11,43 @@ function inappropriate(x) {
     return x.includes("씨발") || x.includes("병신") || x.includes("죽어");
 }
 
-function manage(command, chan) {
+function manage(command, message) {
     const args = command.split(' ').filter(n => n);
     if (args.length == 0) return;
     const cmd = args.shift().toLowerCase();
     if (cmd == 'teto') {
-
+        if (args.length < 1) {
+            message.reply('Wrong query');
+            return;
+        }
+        request({
+            uri: 'https://ch.tetr.io/api/users/' + args[0],
+            qs: {}
+        }, (err, res, body) => {
+            if (err) {
+                message.reply('Error on server');
+                return;
+            }
+            try {
+                const qry = JSON.parse(body);
+                if (!qry.success) {
+                    message.reply('No such user');
+                    return;
+                }
+                var str = '';
+                str += 'Username: ' + qry.data.user.username + '\n';
+                str += 'Won ' + qry.data.user.gameswon + ' of ' + qry.data.user.gamesplayed + ' games\n';
+                str += 'Played for ' + (qry.data.user.gametime / 3600) + ' hours\n';
+                str += 'Rating: ' + qry.data.user.league.rating + '\n';
+                str += 'Glicko: ' + qry.data.user.league.glicko + '\n';
+                // console.log(qry.data.user.league);
+                message.reply(str);
+            } catch (e) {
+                message.reply('Error on processing query');
+                return;
+            }
+        });
+        return;
     }
 }
 
@@ -36,7 +68,7 @@ client.on(Events.MessageCreate, message => {
     // }
     const chan = client.channels.cache.get(message.channelId);
     if (message.content.startsWith(prefix)) {
-        manage(message.content.slice(prefix.length), chan);
+        manage(message.content.slice(prefix.length), message);
         return;
     }
     if (message.content == 'ㅎㅇ') chan.send('ㅎㅇ');
@@ -47,11 +79,11 @@ client.on(Events.MessageCreate, message => {
     else if (message.content.includes('범') || message.content.includes('기버')) chan.send('기범');
     else if (message.content.includes('천안문') || message.content.toLowerCase().includes('tiananmen') || message.content.includes('天安门') || message.content.includes('毛')) chan.send('我爱北京天安门\n天安门上太阳升\n伟大领袖毛主席\n指引我们向前进');
     else if (message.content.includes('天安門')) chan.send('我愛北京天安門\n天安門上太陽昇\n偉大領袖毛主席\n指引我們向前進');
-    else if (message.content == '대' || message.content.includes('大')) chan.send('大星昊');
+    else if (message.content == '대' || message.content.includes('大') || message.content.includes('대성호')) chan.send('<:da:1076509964820041798><:xing:1076510046768336977><:hao:1076510140280356885>');
     else if (message.content.includes('스팸톤') || message.content.toLowerCase().includes('spamton') || message.content.includes("スパムトン")) chan.send(getSpamton());
-    if (message.content.includes('귀여워') || message.content.includes('귀엽다') || message.content.includes('ㄱㅇㅇ') || message.content.includes('게이')) message.react('↖');
-    if (message.content.includes('갈')) message.react('1011628426391724052');
-    if (message.content.includes('성호')) {
+    if (message.content.includes('귀여워') || message.content.includes('귀엽다') || message.content.includes('ㄱㅇㅇ') || message.content.includes('게이') || message.content.toLowerCase().includes('cute') || message.content.toLowerCase().includes('gay') || message.content.includes('카와이') || message.content.includes('可愛') || message.content.includes('かわい')) message.react('↖');
+    if (message.content.includes('갈') || message.content.includes('갉') || message.content.includes('갊') || message.content.includes('갋') || message.content.includes('갌') || message.content.includes('갍') || message.content.includes('갎') || message.content.includes('갏') || message.content.toLowerCase().includes('gal') || message.content.includes('ㄱㅏㄹ') || message.content.includes('ガル')) message.react('1011628426391724052');
+    if (message.content.includes('성호') || message.content.toLowerCase().includes('xing') || message.content.includes('星')) {
         message.react('1076509964820041798');
         message.react('1076510046768336977');
         message.react('1076510140280356885');
@@ -60,6 +92,11 @@ client.on(Events.MessageCreate, message => {
 
 client.on('messageReactionAdd', (reaction, user) => {
     // if (reaction._emoji.name == '🖕') reaction.remove(user);
+    if (reaction._emoji.name == '↖️' || reaction._emoji.name == '↖') {
+        reaction.message.react('↖️');
+        reaction.message.react('↖');
+    }
+    if (reaction._emoji.name == 'gal') reaction.message.react('1011628426391724052');
 });
 
 client.login(token);

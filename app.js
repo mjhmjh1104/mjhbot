@@ -148,7 +148,6 @@ async function manage(command, message) {
         } catch (e) {
             if (e && e.text) message.reply('나중에 시도하십시오');
             else message.reply('오류 발생: ' + e.toString().substring(0, 2000));
-            console.error(e.text);
         }
         return;
     }

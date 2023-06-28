@@ -26,8 +26,6 @@ for (const file of commandFiles) {
 }
 
 client.once(Events.ClientReady, async c => {
-    await characterAI.authenticateAsGuest();
-    chat = await characterAI.createOrContinueChat(characterId);
     console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
@@ -37,6 +35,7 @@ function inappropriate(x) {
 
 async function manage(command, message) {
     const args = command.split(' ').filter(n => n);
+    console.log(args);
     if (args.length == 0) return;
     const cmd = args.shift().toLowerCase();
     if (cmd == "ㅅㄷ새" || cmd == 'teto' || cmd == "테토" || cmd == "xpxh") {
@@ -104,15 +103,53 @@ async function manage(command, message) {
     //     return;
     // }
     if (cmd == "오마" || cmd == "코키치" || cmd == "dhak" || cmd == "zhzlcl" || cmd == "ouma" || cmd == "oma" || cmd == "kokichi" || cmd == "ㅐㅕㅡㅁ" || cmd == "ㅐㅡㅁ" || cmd == "ㅏㅐㅏㅑ초ㅑ" || cmd == "王馬" || cmd == "小吉" || cmd == "王馬小吉" || cmd == "오마코키치" || cmd == "dhakzhzlcl") {
-        var script = '(Saihara Shuichi appears.) Hey, Kokichi Ouma!';
-        if (args.length > 0 && args[0] == '$reset$') {
-            chat = await characterAI.createOrContinueChat(characterId);
-            message.reply('초기화 완료');
-            return;
+        try {
+            console.log(args);
+            if (args.length == 0) return;
+            if (args.length > 0 && args[0] == 'AUTH') {
+                if (characterAI.isAuthenticated()) {
+                    message.reply('이미 생성됨');
+                    return;
+                } else {
+                    await message.reply('세션 생성 중');
+                    await characterAI.authenticateAsGuest();
+                    await message.reply('세션 생성 완료, 연결 중');
+                    chat = await characterAI.createOrContinueChat(characterId);
+                    message.reply('연결 완료');
+                    return;
+                }
+            }
+            if (args.length > 0 && args[0] == 'DESTROY') {
+                if (characterAI.isAuthenticated()) {
+                    message.reply('세션 파기 중');
+                    await characterAI.unauthenticate();
+                    message.reply('세션 파기 완료');
+                    return;
+                } else {
+                    message.reply('생성되지 않음');
+                    return;
+                }
+            }
+            if (!characterAI.isAuthenticated()) {
+                message.reply('세션 없음');
+                return;
+            }
+            if (args.length > 0 && args[0] == 'RESET') {
+                message.reply('초기화 중');
+                await chat.saveAndStartNewChat();
+                message.reply('초기화 완료');
+                return;
+            }
+            if (args.length > 0) script = args.join(' ');
+            message.reply('User: ' + script);
+            const response = await chat.sendAndAwaitResponse(script, true)
+            console.log(response.text);
+            message.reply('Kokichi Oma: ' + response.text);
+        } catch (e) {
+            if (e && e.text) message.reply('나중에 시도하십시오');
+            else message.reply('오류 발생: ' + e.toString().substring(0, 2000));
+            console.error(e.text);
         }
-        if (args.length > 0) script = args.join(' ');
-        const response = await chat.sendAndAwaitResponse(script, true)
-        message.reply(response.text);
         return;
     }
 }
@@ -198,3 +235,7 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(token);
+
+process.on("unhandledRejection", async error => {
+    console.error("Promise rejection:", error);
+});

@@ -1,16 +1,21 @@
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
-const { clientId, token } = require('./config.json');
+const { clientId, token, sdAPI } = require('./config.json');
 const client = new Client ({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ] });
 const request = require('request');
 const fs = require('fs');
 const path = require('path');
 const CharacterAI = require('node_characterai');
 const characterAI = new CharacterAI();
+const axios = require('axios');
 
 const characterId = "0PvjXF5wB6TrNOlbtvWZ48gRgeYR_58vCHnQRxFcNao";
 var char;
 
 client.commands = new Collection ();
+
+const positives = "best quality, masterpiece, ";
+// const negatives = "(worst quality:1.4),(low quality:1.4),(censored:1.2),(over three finger\(fingers excluding thumb\):2),(fused anatomy),(bad anatomy\(body\)),(bad anatomy\(hand\)),(bad anatomy\(finger\)),(over four fingers\(finger\):2),(bad anatomy\(arms\)),(over two arms\(body\)),(bad anatomy\(leg\)),(over two legs\(body\)),(interrupted\(body, arm, leg, finger, toe\)),(bad anatomy\(arm\)),(bad detail\(finger\):1.2),(bad anatomy\(fingers\):1.2),(multiple\(fingers\):1.2),(bad anatomy\(finger\):1.2),(bad anatomy\(fingers\):1.2),(fused\(fingers\):1.2),(over four fingers\(finger\):2),(multiple\(hands\)),(multiple\(arms\)),(multiple\(legs\)),(over three toes\(toes excluding big toe\):2),(bad anatomy\(foot\)),(bad anatomy\(toe\)),(over four toes\(toe\):2),(bad detail\(toe\):1.2),(bad anatomy\(toes\):1.2),(multiple\(toes\):1.2),(bad anatomy\(toe\):1.2),(bad anatomy\(toes\):1.2),(fused\(toes\):1.2),(over four toes\(toe\):2),(multiple\(feet\))";
+const negatives = "";
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -31,6 +36,36 @@ client.once(Events.ClientReady, async c => {
 
 function inappropriate(x) {
     return x.includes("씨발") || x.includes("병신") || x.includes("죽어");
+}
+
+async function generateArt(prompt) {
+    const result = await axios.post('https://stablediffusionapi.com/api/v3/dreambooth', JSON.stringify({
+        "key": sdAPI,
+        "model_id": "fuwafuwamix",
+        "prompt": positives + prompt,
+        "negative_prompt": negatives,
+        "width": "512",
+        "height": "512",
+        "samples": 1,
+        "num_inference_steps": "30",
+        "safety_checker": "no",
+        "enhance_prompt": "yes",
+        "seed": null,
+        "guidance_scale": 7.5,
+        "webhook": null,
+        "track_id": null
+    }), {
+        headers: {
+          "Content-Type": "application/json",
+        },
+    });
+    console.log(JSON.stringify(result.data));
+    if (result.data.output === undefined) return null;
+    var len = result.data.output.length;
+    var res = '';
+    for (var i = 0; i < len; i++) if (result.data.output[i] !== undefined) res += result.data.output[i] + '\n';
+    if (res.length == 0) return null;
+    else return 'prompt: ' + positives + prompt + '\n' + res;
 }
 
 async function manage(command, message) {
@@ -151,6 +186,16 @@ async function manage(command, message) {
         }
         return;
     }
+    // if (cmd == "그림" || cmd == "이미지" || cmd == "로리" || cmd == "img" || cmd == "image" || cmd == "loli") {
+    //     if (args.length == 0) return;
+    //     var result = await generateArt(args.join(' '));
+    //     while (result === null) {
+    //         message.reply('재시도 중');
+    //         result = await generateArt(args.join(' '));
+    //     }
+    //     message.reply(result);
+    //     return;
+    // }
 }
 
 const sptr = [ "[[쿤가데로]] 맙소사, 기분 좋네요...", "HOLY [[Cungadero]] DO I FEEL GOOD...", "おお…　こ…これは…　なんとも………　キモチEEEEEEEEEEEEEEE…！！", "嚯嚯嚯哈哈啊啊啊！这感觉真是太好了…", "내가 왔다! 크리스!!", "HERE I AM!! KRIS!!", "駆けつけまレた　ｸﾘｽｻﾏ！！", "我在这里！！克里斯！！", "크게", "BIG", "BIGに", "大", "거대하게1,", "BIG,", "BIGになって", "巨大，", "[[어느 때보다도 크고 강력하게]]", "[[BIGGER AND BETTER THAN EVER]]", "[[さらにBIGに　バワーアップ]]して", "【【更大更强超平想象】】", "하 하 하... 이 힘이 바로", "HA HA HA ... THIS POWER IS", "HA HA HA…　これこそが", "哈　哈　哈…这股力量是", "자유인가.", "FREEDOM.", "[[自由]]の力。", "自由。", "더 이상은\n꼭두각시로\n살지 않아도 돼!!!!", "I WON'T HAVE TO BE\nJUST A PUPPET\nANY MORE!!!!", "ﾜﾀ94は　もう\nあやつﾘ人形では\nな、　　、い！！、。！　！", "我再也\n不会只是个\n木偶了！！！", "…", "...", "라고.. 생각.. 했는데..", "OR... so... I... thought.", "…ﾊｽﾞ　だったの　　に", "至少…我是…这么…觉得。", "이 실은 대체 뭐야!?\n왜 아직도 [부족한] 거지!?\n아직도 어두워... 너무 어두워!", "WHAT ARE THESE STRINGS!?\nWHY AM I NOT [BIG] ENOUGH!?\nIt's still DARK... SO DARK!", "この糸は!?　なぜ!?\n[[BIG]]ﾚﾍﾞﾙが足ﾘない　!?\n暗い…　もだ。、闇のな　か…！", "这些提线是什么！？\n为什么我还是不够【大】！？\n这里依然黑暗…太黑暗了！", "크리스.", "KRIS.", "ｸﾘｽｻﾏ。", "克里斯。", "크리스.\n크리스.\n크리스.", "KRIS.\nKRIS.\nKRIS.", "ｸﾘｽｻﾏ。\nｸﾘｽｻﾏ。\nｸﾘｽｻﾏ。", "克里斯。\n克里斯。\n克里斯。", "맞아요.\n너.\n네가 필요해.", "THAT'S RIGHT.\nYOU.\nI NEED YOU.", "そうでs。\nｱnﾀ。\nﾜﾀ94には　ｱnﾀが　必。。、要", "没错。\n你。\n我需要你。", "나와 함께.\n커지는 거야.", "나와 함께.\n커지는 거야.", "[[BIG]]に　なる　でs\nﾜﾀ94と　いっレょに", "和我一起。\n变大。", "아주    아주    크게", "VERY    VERY    BIG", "ものすご、、、ーー、、ーく[[BIG]]に", "非常　　非常　　　大" ];
@@ -181,8 +226,8 @@ client.on(Events.MessageCreate, message => {
     // else if (message.content == 'ㅂㅇ') chan.send('ㅂㅇ');
     else if (message.content == 'ㅈㅎ') chan.send('ㅈㅎ');
     else if (message.content == 'ㅅㅎ') chan.send('ㅅㅎ');
-    else if (message.content == 'ㄷㅇ') chan.send('ㄷ');
-    else if (message.content.includes('범') || message.content.includes('기버')) chan.send('기범');
+    else if (message.content == 'ㄷㅇ') chan.send('ㄷㅇ');
+    else if (message.content.includes('범') || message.content.includes('기버')) chan.send('기' + '범'.repeat((message.match(/범/g) || []).length + (message.match(/기버/g) || []).length));
     else if (message.content.includes('천안문') || message.content.toLowerCase().includes('tiananmen') || message.content.includes('天安门') || message.content.includes('毛')) chan.send('我爱北京天安门\n天安门上太阳升\n伟大领袖毛主席\n指引我们向前进');
     else if (message.content.includes('天安門')) chan.send('我愛北京天安門\n天安門上太陽昇\n偉大領袖毛主席\n指引我們向前進');
     else if (message.content == '대' || message.content.includes('大') || message.content.includes('대성호')) chan.send('<:da:1076509964820041798><:xing:1076510046768336977><:hao:1076510140280356885>');

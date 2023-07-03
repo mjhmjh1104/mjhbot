@@ -227,7 +227,7 @@ client.on(Events.MessageCreate, message => {
     else if (message.content == 'ㅈㅎ') chan.send('ㅈㅎ');
     else if (message.content == 'ㅅㅎ') chan.send('ㅅㅎ');
     else if (message.content == 'ㄷㅇ') chan.send('ㄷㅇ');
-    else if (message.content.includes('범') || message.content.includes('기버')) chan.send('기' + '범'.repeat((message.match(/범/g) || []).length + (message.match(/기버/g) || []).length));
+    else if (message.content.includes('범') || message.content.includes('기버')) chan.send('기' + '범'.repeat((message.content.match(/범/g) || []).length + (message.content.match(/기버/g) || []).length));
     else if (message.content.includes('천안문') || message.content.toLowerCase().includes('tiananmen') || message.content.includes('天安门') || message.content.includes('毛')) chan.send('我爱北京天安门\n天安门上太阳升\n伟大领袖毛主席\n指引我们向前进');
     else if (message.content.includes('天安門')) chan.send('我愛北京天安門\n天安門上太陽昇\n偉大領袖毛主席\n指引我們向前進');
     else if (message.content == '대' || message.content.includes('大') || message.content.includes('대성호')) chan.send('<:da:1076509964820041798><:xing:1076510046768336977><:hao:1076510140280356885>');

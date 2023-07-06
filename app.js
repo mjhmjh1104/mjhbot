@@ -235,7 +235,7 @@ function apply(orig, targ, cond) {
         if (Array.isArray(cond.match)) cond.match.forEach(item => cnt += (orig.match(new RegExp(item, 'g')) || []).length);
         else cnt += (orig.match(new RegExp(cond.match, 'g')) || []).length;
     }
-    console.log(orig, cnt);
+    // console.log(orig, cnt);
     for (var i = 0; i < targ.length; i++) {
         var ex = false;
         if (targ[i] == '\\') {

@@ -472,30 +472,25 @@ function checkDiff() {
             var newSumGlicko = sumGlicko - item.glicko + curr.glicko;
             var differences = [ ];
             for (const item2 of results) {
-                await (async () => {
-                    return new Promise (async (resolve, reject) => {
-                        var newGlicko = item2.glicko;
-                        var newGames = item2.games;
-                        if (item2.id == item.id) {
-                            newGlicko = curr.glicko;
-                            newGames = curr.games;
-                        }
-                        var newPrice = sumPrice / newSumGlicko * newGlicko;
-                        await setGlicko({
-                            id: item2.id,
-                            games: newGames,
-                            glicko: newGlicko,
-                            price: newPrice
-                        });
-                        differences.push({
-                            id: item2.id,
-                            difference: Math.abs(item2.price - newPrice),
-                            _old: item2.price,
-                            _new: newPrice
-                        });
-                        resolve();
-                    });
-                })();
+                var newGlicko = item2.glicko;
+                var newGames = item2.games;
+                if (item2.id == item.id) {
+                    newGlicko = curr.glicko;
+                    newGames = curr.games;
+                }
+                var newPrice = sumPrice / newSumGlicko * newGlicko;
+                await setGlicko({
+                    id: item2.id,
+                    games: newGames,
+                    glicko: newGlicko,
+                    price: newPrice
+                });
+                differences.push({
+                    id: item2.id,
+                    difference: Math.abs(item2.price - newPrice),
+                    _old: item2.price,
+                    _new: newPrice
+                });
             }
             differences.sort(function (a, b) {
                 return b.difference - a.difference;

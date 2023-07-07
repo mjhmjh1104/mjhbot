@@ -1,5 +1,5 @@
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
-const { clientId, token, sdAPI } = require('./config.json');
+const { clientId, token, sdAPI, sqlPW } = require('./config.json');
 const client = new Client ({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ] });
 const request = require('request');
 const fs = require('fs');
@@ -7,6 +7,7 @@ const path = require('path');
 const CharacterAI = require('node_characterai');
 const characterAI = new CharacterAI();
 const axios = require('axios');
+const mysql = require('mysql');
 
 const characterId = "0PvjXF5wB6TrNOlbtvWZ48gRgeYR_58vCHnQRxFcNao";
 var char;
@@ -30,15 +31,26 @@ for (const file of commandFiles) {
     }
 }
 
+const sql = mysql.createConnection({
+    host: '127.0.0.1',
+    user: 'mjhbot',
+    password: sqlPW,
+    database: 'mjhbot'
+});
+sql.connect();
+
+sql.query('CREATE TABLE IF NOT EXISTS LIST (id CHAR(100) NOT NULL UNIQUE, games INTEGER, glicko DOUBLE, price DOUBLE)');
+
 const conditions = JSON.parse(fs.readFileSync('condition.json', 'utf8'));
 var messageConditions = [ ];
 var reactConditions = [ ];
 
+conditions.forEach(item => {
+    if (item.match != undefined || item.matchexact != undefined) messageConditions.push(item);
+    if (item.onreact != undefined) reactConditions.push(item);
+});
+
 client.once(Events.ClientReady, async c => {
-    conditions.forEach(item => {
-        if (item.match != undefined || item.matchexact != undefined) messageConditions.push(item);
-        if (item.onreact != undefined) reactConditions.push(item);
-    });
     console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
@@ -359,7 +371,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
         try {
-            await command.execute(interaction);
+            await command.execute(interaction, sql);
         } catch (error) {
             console.error(error);
             if (interaction.replied || interaction.deferred) {
@@ -369,11 +381,10 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         }
     } else if (interaction.isButton()) {
-        interaction.reply('Wow');
-        /*const command = client.commands.get(interaction.commandName);
+        const command = client.commands.get(interaction.message.interaction.commandName);
         if (!command) return;
         try {
-            await command.buttonPress(interaction);
+            await command.buttonPress(interaction, sql);
         } catch (error) {
             console.error(error);
             if (interaction.replied || interaction.deferred) {
@@ -381,7 +392,7 @@ client.on(Events.InteractionCreate, async interaction => {
             } else {
                 await interaction.reply({ content: 'Error while executing command', ephemeral: true });
             }
-        }*/
+        }
     }
 });
 

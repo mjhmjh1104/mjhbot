@@ -1,4 +1,4 @@
-const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const { clientId, token, sdAPI, sqlPW } = require('./config.json');
 const client = new Client ({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ] });
 const request = require('request');
@@ -40,6 +40,7 @@ const sql = mysql.createConnection({
 sql.connect();
 
 sql.query('CREATE TABLE IF NOT EXISTS LIST (id CHAR(100) NOT NULL UNIQUE, games INTEGER, glicko DOUBLE, price DOUBLE)');
+sql.query('CREATE TABLE IF NOT EXISTS NOTIFY (id CHAR(100) NOT NULL UNIQUE)');
 
 const conditions = JSON.parse(fs.readFileSync('condition.json', 'utf8'));
 var messageConditions = [ ];
@@ -401,3 +402,132 @@ client.login(token);
 process.on("unhandledRejection", async error => {
     console.error("Promise rejection:", error);
 });
+
+async function getGlicko(id) {
+    var ret = null;
+    await (async () => {
+        return new Promise ((resolve, reject) => {
+            request({
+                uri: 'https://ch.tetr.io/api/users/' + id.toLowerCase(),
+                qs: {}
+            }, (err, res, body) => {
+                if (err) {
+                    resolve();
+                    return;
+                }
+                try {
+                    const qry = JSON.parse(body);
+                    if (!qry.success) {
+                        resolve();
+                        return;
+                    }
+                    ret = {
+                        id: id,
+                        games: qry.data.user.league.gamesplayed,
+                        glicko: qry.data.user.league.glicko
+                    };
+                } catch (e) {
+                    resolve();
+                    return;
+                }
+                resolve();
+            });
+        });
+    })();
+    return ret;
+}
+
+async function setGlicko(x) {
+    await (async () => {
+        return new Promise ((resolve, reject) => {
+            sql.query(`UPDATE LIST SET games = ${x.games}, glicko = ${x.glicko}, price = ${x.price} WHERE id = '${x.id}'`, async function (err, results, fields) {
+                if (err) console.log(err);
+                resolve();
+            });
+        });
+    })();
+}
+
+function checkDiff() {
+    sql.query('SELECT id, games, glicko, price FROM LIST', async function (err, results, fields) {
+        if (err) {
+            console.log(err);
+            return;
+        }
+        var embedList = null;
+        var sumPrice = 0, sumGlicko = 0;
+        results.forEach(function (item) {
+            sumPrice += item.price;
+            sumGlicko += item.glicko;
+        });
+        for (const item of results) {
+            const curr = await getGlicko(item.id);
+            if (curr === null) continue;
+            if (curr.games == item.games) continue;
+            var gamecnt = curr.games - item.games;
+            var embed = new EmbedBuilder ();
+            embed.setColor(0x009900)
+            .setTitle('주가 변동 알림')
+            .setDescription(gamecnt == 1 ? `**${curr.id} went through a game**` : `**${curr.id} went through ${gamecnt} games**`)
+            var newSumGlicko = sumGlicko - item.glicko + curr.glicko;
+            var differences = [ ];
+            for (const item2 of results) {
+                await (async () => {
+                    return new Promise (async (resolve, reject) => {
+                        var newGlicko = item2.glicko;
+                        var newGames = item2.games;
+                        if (item2.id == item.id) {
+                            newGlicko = curr.glicko;
+                            newGames = curr.games;
+                        }
+                        var newPrice = sumPrice / newSumGlicko * newGlicko;
+                        await setGlicko({
+                            id: item2.id,
+                            games: newGames,
+                            glicko: newGlicko,
+                            price: newPrice
+                        });
+                        differences.push({
+                            id: item2.id,
+                            difference: Math.abs(item2.price - newPrice),
+                            _old: item2.price,
+                            _new: newPrice
+                        });
+                        resolve();
+                    });
+                })();
+            }
+            differences.sort(function (a, b) {
+                return b.difference - a.difference;
+            });
+            var printCnt = Math.min(5, differences.length);
+            for (var i = 0; i < printCnt; i++) {
+                var _old = differences[i]._old.toFixed(0);
+                var _new = differences[i]._new.toFixed(0);
+                var color = '⚫';
+                if (_new > _old) color = '🔴';
+                if (_new < _old) color = '🔵';
+                embed.addFields({
+                    name: differences[i].id,
+                    value: `${_new} (${color} ${Math.abs(_new - _old)})`
+                });
+            }
+            //🔵🔴⚫
+            embedList = embed;
+            sql.query('SELECT id FROM NOTIFY', function (err, results, fiends) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                results.forEach(function (item) {
+                    var chan = client.channels.cache.get(item.id);
+                    chan.send({ embeds: [ embedList ] });
+                });
+            });
+            return;
+        };
+    });
+}
+
+const interv = 30;
+setInterval(checkDiff, interv * 1000);

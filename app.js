@@ -463,7 +463,7 @@ function checkDiff() {
         for (const item of results) {
             const curr = await getGlicko(item.id);
             if (curr === null) continue;
-            if (curr.games == item.games) continue;
+            if (curr.games <= item.games) continue;
             var gamecnt = curr.games - item.games;
             var embed = new EmbedBuilder ();
             embed.setColor(0x009900)
@@ -519,6 +519,7 @@ function checkDiff() {
                     chan.send({ embeds: [ embedList ] });
                 });
             });
+            checkDiff();
             return;
         };
     });

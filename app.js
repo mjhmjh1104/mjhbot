@@ -493,20 +493,20 @@ const loses = [ 'got overpowered by {1}', 'got KO\'ed by {1}', 'got wrecked by {
 function makedescript(x, w, l) {
     var str = '';
     if (w.length != 0 && l.length != 0) {
-        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)]).format(x, w[0]);
-        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[i]);
-        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[w.length - 1]);
-        str += (', and ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[0]);
-        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[i]);
-        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
+        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[0].score).format(x, w[0].user);
+        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[i].score).format(null, w[i].user);
+        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[w.length - 1].score).format(null, w[w.length - 1].user);
+        str += (', and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[0].score).format(null, l[0].user);
+        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[i].score).format(null, l[i].user);
+        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[l.length - 1].score + '.').format(null, l[l.length - 1].user);
     } else if (w.length != 0) {
-        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)]).format(x, w[0]);
-        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[i]);
-        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + '.').format(null, w[w.length - 1]);
+        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[0].score).format(x, w[0].user);
+        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[i].score).format(null, w[i].user);
+        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[w.length - 1] + '.').format(null, w[w.length - 1].user);
     } else if (l.length != 0) {
-        str += ('{0} ' + loses[Math.floor(Math.random() * loses.length)]).format(x, l[0]);
-        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[i]);
-        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
+        str += ('{0} ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[0].score).format(x, l[0].user);
+        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[i].score).format(null, l[i].user);
+        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[l.length - 1] + '.').format(null, l[l.length - 1].user);
     } else str = 'But nobody came to {0}.'.format(x);
     return str;
 }
@@ -544,9 +544,15 @@ async function checkDiff() {
                     wins: games[i].endcontext[1].wins
                 }
                 if (won.user != item.id) {
-                    l.push(`${won.user} with the score of ${lost.wins} : ${won.wins}`);
+                    l.push({
+                        user: won.user,
+                        score: `${lost.wins} : ${won.wins}`
+                    });
                 } else {
-                    w.push(`${lost.user} with the score of ${won.wins} : ${lost.wins}`);
+                    w.push({
+                        user: lost.user,
+                        score: `${won.wins} : ${lost.wins}`
+                    });
                 }
             }
             embed.setDescription('**' + makedescript(item.id, w, l) + '**');

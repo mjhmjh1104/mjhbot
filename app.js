@@ -55,6 +55,14 @@ client.once(Events.ClientReady, async c => {
     console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
+if (!String.prototype.format) {
+    String.prototype.format = function(...args) {
+        return this.replace(/(\{\d+\})/g, function(a) {
+            return args[+(a.substr(1, a.length - 2)) || 0];
+        });
+    };
+}
+
 function inappropriate(x) {
     return x.includes("씨발") || x.includes("병신") || x.includes("죽어");
 }
@@ -424,8 +432,39 @@ async function getGlicko(id) {
                     ret = {
                         id: id,
                         games: qry.data.user.league.gamesplayed,
-                        glicko: qry.data.user.league.glicko
+                        glicko: qry.data.user.league.glicko,
+                        _id: qry.data.user._id
                     };
+                } catch (e) {
+                    resolve();
+                    return;
+                }
+                resolve();
+            });
+        });
+    })();
+    return ret;
+}
+
+async function getGames(id) {
+    var ret = [ ];
+    await (async () => {
+        return new Promise ((resolve, reject) => {
+            request({
+                uri: 'https://ch.tetr.io/api/streams/league_userrecent_' + id,
+                qs: {}
+            }, (err, res, body) => {
+                if (err) {
+                    resolve();
+                    return;
+                }
+                try {
+                    const qry = JSON.parse(body);
+                    if (!qry.success) {
+                        resolve();
+                        return;
+                    }
+                    ret = qry.data.records;
                 } catch (e) {
                     resolve();
                     return;
@@ -448,7 +487,31 @@ async function setGlicko(x) {
     })();
 }
 
-function checkDiff() {
+const wins = [ 'overpowered {1}', 'KO\'ed {1}', 'wrecked {1}', 'gave the L to {1}', 'roasted {1}', 'smacked {1}', 'bamboozled {1}', 'memed {1}', 'smashed {1}', 'dominated {1}', 'broke {1}', 'shattered {1} to pieces', 'knocked {1} out', 'stunned {1}', 'eliminated {1}', 'beated {1}', 'defeated {1}', 'overwhelmed {1}', 'conquered {1}', 'outclassed {1}', 'outdid {1}', 'forced {1} to lose' ];
+const loses = [ 'got overpowered by {1}', 'got KO\'ed by {1}', 'got wrecked by {1}', 'took the L to {1}', 'got roasted by {1}', 'got smacked by {1}', 'got bamboozled by {1}', 'got memed by {1}', 'got smashed by {1}', 'got dominated by {1}', 'got broke by {1}', 'got shattered to pieces by {1}', 'got knocked out by {1}', 'got stunned by {1}', 'got eliminated by {1}', 'got beated by {1}', 'got defeated by {1}', 'got overwhelmed by {1}', 'got conquered by {1}', 'got outclassed by {1}', 'got outdone by {1}', 'got forced to lose by {1}' ];
+
+function makedescript(x, w, l) {
+    var str = '';
+    if (w.length != 0 && l.length != 0) {
+        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)]).format(x, w[0]);
+        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[i]);
+        str += (' and ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[w.length - 1]);
+        str += (', and ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[0]);
+        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[i]);
+        str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
+    } else if (w.length != 0) {
+        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)]).format(x, w[0]);
+        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[i]);
+        str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + '.').format(null, w[w.length - 1]);
+    } else if (l.length != 0) {
+        str += ('{0} ' + loses[Math.floor(Math.random() * loses.length)]).format(x, l[0]);
+        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[i]);
+        str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
+    } else str = 'But nobody came to {0}.'.format(x);
+    return str;
+}
+
+async function checkDiff() {
     sql.query('SELECT id, games, glicko, price FROM LIST', async function (err, results, fields) {
         if (err) {
             console.log(err);
@@ -467,8 +530,26 @@ function checkDiff() {
             var gamecnt = curr.games - item.games;
             var embed = new EmbedBuilder ();
             embed.setColor(0x009900)
-            .setTitle('주가 변동 알림')
-            .setDescription(gamecnt == 1 ? `**${curr.id} went through a game**` : `**${curr.id} went through ${gamecnt} games**`)
+            .setTitle('주가 변동 알림');
+            const games = await getGames(curr._id);
+            var cnt = Math.min(gamecnt, games.length);
+            var w = [ ], l = [ ];
+            games.forEach(function (it) {
+                var won = {
+                    user: it.endcontext[0].user.username.toUpperCase(),
+                    wins: it.endcontext[0].wins
+                };
+                var lost = {
+                    user: it.endcontext[1].user.username.toUpperCase(),
+                    wins: it.endcontext[1].wins
+                }
+                if (won.user != item.id) {
+                    l.push(`${won.user} with the score of ${lost.wins} : ${won.wins}`);
+                } else {
+                    w.push(`${lost.user} with the score of ${won.wins} : ${lost.wins}`);
+                }
+            });
+            embed.setDescription('**' + makedescript(item.id, w, l) + '**');
             var newSumGlicko = sumGlicko - item.glicko + curr.glicko;
             var differences = [ ];
             for (const item2 of results) {
@@ -509,19 +590,18 @@ function checkDiff() {
             }
             //🔵🔴⚫
             embedList = embed;
-            sql.query('SELECT id FROM NOTIFY', function (err, results, fiends) {
+            sql.query('SELECT id FROM NOTIFY', async function (err, results, fiends) {
                 if (err) {
                     console.log(err);
                     return;
                 }
-                results.forEach(function (item) {
-                    var chan = client.channels.cache.get(item.id);
-                    chan.send({ embeds: [ embedList ] });
-                });
+                for (var i = 0; i < results.length; i++) {
+                    var chan = client.channels.cache.get(results[i].id);
+                    await chan.send({ embeds: [ embedList ] });
+                }
             });
             checkDiff();
-            return;
-        };
+        }
     });
 }
 

@@ -495,18 +495,18 @@ function makedescript(x, w, l) {
     if (w.length != 0 && l.length != 0) {
         str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)]).format(x, w[0]);
         for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[i]);
-        str += (' and ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[w.length - 1]);
+        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[w.length - 1]);
         str += (', and ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[0]);
         for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[i]);
-        str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
+        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
     } else if (w.length != 0) {
         str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)]).format(x, w[0]);
         for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)]).format(null, w[i]);
-        str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + '.').format(null, w[w.length - 1]);
+        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + '.').format(null, w[w.length - 1]);
     } else if (l.length != 0) {
         str += ('{0} ' + loses[Math.floor(Math.random() * loses.length)]).format(x, l[0]);
         for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)]).format(null, l[i]);
-        str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
+        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + '.').format(null, l[l.length - 1]);
     } else str = 'But nobody came to {0}.'.format(x);
     return str;
 }
@@ -534,21 +534,21 @@ async function checkDiff() {
             const games = await getGames(curr._id);
             var cnt = Math.min(gamecnt, games.length);
             var w = [ ], l = [ ];
-            games.forEach(function (it) {
+            for (var i = 0; i < cnt; i++) {
                 var won = {
-                    user: it.endcontext[0].user.username.toUpperCase(),
-                    wins: it.endcontext[0].wins
+                    user: games[i].endcontext[0].user.username.toUpperCase(),
+                    wins: games[i].endcontext[0].wins
                 };
                 var lost = {
-                    user: it.endcontext[1].user.username.toUpperCase(),
-                    wins: it.endcontext[1].wins
+                    user: games[i].endcontext[1].user.username.toUpperCase(),
+                    wins: games[i].endcontext[1].wins
                 }
                 if (won.user != item.id) {
                     l.push(`${won.user} with the score of ${lost.wins} : ${won.wins}`);
                 } else {
                     w.push(`${lost.user} with the score of ${won.wins} : ${lost.wins}`);
                 }
-            });
+            }
             embed.setDescription('**' + makedescript(item.id, w, l) + '**');
             var newSumGlicko = sumGlicko - item.glicko + curr.glicko;
             var differences = [ ];

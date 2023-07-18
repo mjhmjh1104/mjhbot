@@ -294,10 +294,16 @@ function apply(orig, targ, cond) {
     return ret;
 }
 
+function normalize(x) {
+    return x.replace(/[0-9\.,!~`@\\$%#^&*\(\)-\+=\[\]\{\}:;\'\"\<\>\?/\| ]/g, '').toLowerCase();
+}
+
+// 가나다라힣햏
 function proceed(message, chan, condition) {
+    var msg = normalize(message.content);
     if (condition.send !== undefined) {
-        if (Array.isArray(condition.send)) condition.send.forEach(item => chan.send(apply(message.content, item, condition)));
-        else chan.send(apply(message.content, condition.send, condition));
+        if (Array.isArray(condition.send)) condition.send.forEach(item => chan.send(apply(msg, item, condition)));
+        else chan.send(apply(msg, condition.send, condition));
     }
     if (condition.sendrandom !== undefined) chan.send(condition.sendrandom[Math.floor(Math.random() * condition.sendrandom.length)]);
     if (condition.react !== undefined ) {
@@ -307,15 +313,16 @@ function proceed(message, chan, condition) {
 }
 
 function processMessage(message, chan, condition) {
+    var msg = normalize(message.content);
     if (include(condition.except, message.guild.id)) return;
     if (condition.in !== undefined && !include(condition.in, message.guild.id)) return;
     var flag = false;
-    if (include(condition.matchexact, message.content)) flag = true;
+    if (include(condition.matchexact, msg)) flag = true;
     if (condition.match !== undefined) {
         var matchlist = [ ];
         if (Array.isArray(condition.match)) matchlist = condition.match;
         else matchlist = [ condition.match ];
-        matchlist.forEach(item => flag |= message.content.toLowerCase().includes(item));
+        matchlist.forEach(item => flag |= msg.includes(item));
     }
     if (flag) proceed(message, chan, condition);
 }
@@ -343,36 +350,12 @@ client.on(Events.MessageCreate, message => {
         manage(message.content.slice(prefix_hanguel.length), message);
         return;
     }
-    // if (message.content == 'ㅎㅇ') chan.send('ㅎㅇ');
-    // else if (message.content == 'ㅂㅇ') chan.send('ㅂㅇ');
     messageConditions.forEach(item => processMessage(message, chan, item));
-    // if (message.content == 'ㅈㅎ') chan.send('ㅈㅎ');
-    // if (message.content == 'ㅅㅎ') chan.send('ㅅㅎ');
-    // if (message.content == 'ㄷㅇ') chan.send('ㄷㅇ');
-    // if (message.content.includes('범') || message.content.includes('기버')) {
-    //     if (message.guild.id != '993456436438904882') chan.send('기' + '범'.repeat((message.content.match(/범/g) || []).length + (message.content.match(/기버/g) || []).length));
-    // }
-    // if (message.content.includes('천안문') || message.content.toLowerCase().includes('tiananmen') || message.content.includes('天安门') || message.content.includes('毛')) chan.send('我爱北京天安门\n天安门上太阳升\n伟大领袖毛主席\n指引我们向前进');
-    // if (message.content.includes('天安門')) chan.send('我愛北京天安門\n天安門上太陽昇\n偉大領袖毛主席\n指引我們向前進');
-    // if (message.content == '대' || message.content.includes('大') || message.content.includes('대성호')) chan.send('<:da:1076509964820041798><:xing:1076510046768336977><:hao:1076510140280356885>');
-    // if (message.content.includes('스팸톤') || message.content.toLowerCase().includes('spamton') || message.content.includes("スパムトン")) chan.send(getSpamton());
-    // if (message.content.includes('귀여워') || message.content.includes('귀엽다') || message.content.includes('ㄱㅇㅇ') || message.content.includes('게이') || message.content.toLowerCase().includes('cute') || message.content.toLowerCase().includes('gay') || message.content.includes('카와이') || message.content.includes('可愛') || message.content.includes('かわい')) message.react('↖️');
-    // if (message.content.includes('갈') || message.content.includes('갉') || message.content.includes('갊') || message.content.includes('갋') || message.content.includes('갌') || message.content.includes('갍') || message.content.includes('갎') || message.content.includes('갏') || message.content.toLowerCase().includes('gal') || message.content.includes('ㄱㅏㄹ') || message.content.includes('ガル')) message.react('1011628426391724052');
-    // if (message.content.includes('성호') || message.content.toLowerCase().includes('xing') || message.content.includes('星')) {
-    //     message.react('1076509964820041798');
-    //     message.react('1076510046768336977');
-    //     message.react('1076510140280356885');
-    // }
-    
 });
 
 client.on(Events.MessageReactionAdd, (reaction, user) => {
-    // if (reaction._emoji.name == '🖕') reaction.remove(user);
     const chan = client.channels.cache.get(reaction.message.channelId);
     reactConditions.forEach(item => processReact(reaction, chan, item));
-    // if (reaction._emoji.name == '↖️') reaction.message.react('↖️');
-    // if (reaction._emoji.name == 'gal') reaction.message.react('1011628426391724052');
-    // if (reaction._emoji.name == '😳') reaction.message.react('😳');
 });
 
 client.on(Events.InteractionCreate, async interaction => {

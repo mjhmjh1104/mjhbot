@@ -1,5 +1,5 @@
 const { Client, Collection, Events, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const { clientId, token, sdAPI, sqlPW } = require('./config.json');
+const { clientId, token, sdAPI, sqlPW, caToken } = require('./config.json');
 const client = new Client ({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ] });
 const request = require('request');
 const fs = require('fs');
@@ -176,7 +176,9 @@ async function manage(command, message) {
                     return;
                 } else {
                     await message.reply('세션 생성 중');
-                    await characterAI.authenticateAsGuest();
+                    var tok = caToken;
+                    if (args.length > 1) tok = args[1];
+                    await characterAI.authenticateWithToken(tok);
                     await message.reply('세션 생성 완료, 연결 중');
                     chat = await characterAI.createOrContinueChat(characterId);
                     message.reply('연결 완료');
@@ -589,7 +591,6 @@ async function checkDiff() {
                     await chan.send({ embeds: [ embedList ] });
                 }
             });
-            checkDiff();
         }
     });
 }

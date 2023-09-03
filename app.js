@@ -47,8 +47,8 @@ var messageConditions = [ ];
 var reactConditions = [ ];
 
 conditions.forEach(item => {
-    if (item.match != undefined || item.matchexact != undefined) messageConditions.push(item);
-    if (item.onreact != undefined) reactConditions.push(item);
+    if (item.match !== undefined || item.matchexact !== undefined || item.mention !== undefined) messageConditions.push(item);
+    if (item.onreact !== undefined) reactConditions.push(item);
 });
 
 client.once(Events.ClientReady, async c => {
@@ -325,6 +325,12 @@ function processMessage(message, chan, condition) {
         if (Array.isArray(condition.match)) matchlist = condition.match;
         else matchlist = [ condition.match ];
         matchlist.forEach(item => flag |= msg.includes(item));
+    }
+    if (condition.mention !== undefined) {
+        var mentionlist = [ ];
+	if (Array.isArray(condition.mention)) mentionlist = condition.mention;
+	else mentionlist = [ conditoin.mention ];
+	mentionlist.forEach(item => flag |= message.mentions.has(item));
     }
     if (flag) proceed(message, chan, condition);
 }

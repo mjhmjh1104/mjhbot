@@ -7,7 +7,9 @@ const path = require('path');
 const CharacterAI = require('node_characterai');
 const characterAI = new CharacterAI();
 const axios = require('axios');
-const mysql = require('mysql');
+const mysql = require('mysql2/promise');
+
+const { processMessageAll, processReactAll, loadConditions } = require('./chatbot.js');
 
 const characterId = "0PvjXF5wB6TrNOlbtvWZ48gRgeYR_58vCHnQRxFcNao";
 var char;
@@ -31,25 +33,20 @@ for (const file of commandFiles) {
     }
 }
 
-const sql = mysql.createConnection({
+const sql = mysql.createPool({
     host: '127.0.0.1',
     user: 'mjhbot',
     password: sqlPW,
-    database: 'mjhbot'
+    database: 'mjhbot',
+    waitForConnections: true,
+    enableKeepAlive: true
 });
-sql.connect();
 
 sql.query('CREATE TABLE IF NOT EXISTS LIST (id CHAR(100) NOT NULL UNIQUE, games INTEGER, glicko DOUBLE, price DOUBLE)');
+sql.query('CREATE TABLE IF NOT EXISTS COMMANDS (id CHAR(32) PRIMARY KEY, server VARCHAR(25) NOT NULL, content TEXT, lastmodified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, lastmodifieduser VARCHAR(50) NOT NULL)');
 sql.query('CREATE TABLE IF NOT EXISTS NOTIFY (id CHAR(100) NOT NULL UNIQUE)');
 
-const conditions = JSON.parse(fs.readFileSync('condition.json', 'utf8'));
-var messageConditions = [ ];
-var reactConditions = [ ];
-
-conditions.forEach(item => {
-    if (item.match != undefined || item.matchexact != undefined) messageConditions.push(item);
-    if (item.onreact != undefined) reactConditions.push(item);
-});
+loadConditions(sql);
 
 client.once(Events.ClientReady, async c => {
     console.log(`Ready! Logged in as ${c.user.tag}`);
@@ -61,10 +58,6 @@ if (!String.prototype.format) {
             return args[+(a.substr(1, a.length - 2)) || 0];
         });
     };
-}
-
-function inappropriate(x) {
-    return x.includes("씨발") || x.includes("병신") || x.includes("죽어");
 }
 
 async function generateArt(prompt) {
@@ -236,107 +229,6 @@ function getSpamton() {
 
 const prefix = 'mb ', prefix_hanguel = 'ㅡㅠ ';
 
-function include(x, y) {
-    if (x === undefined) return false;
-    if (x === y) return true;
-    if (Array.isArray(x) && x.includes(y)) return true;
-    return false;
-}
-
-function apply(orig, targ, cond) {
-    var ret = '';
-    var flag = 0;
-    var cnt = 0;
-    var command = '', arg = '';
-    if (cond.matchexact !== undefined) {
-        if (Array.isArray(cond.matchexact)) cond.matchexact.forEach(item => {
-            if (orig === item) cnt++;
-        });
-        else if (orig === cond.matchexact) cnt++;
-    }
-    if (cond.match !== undefined) {
-        if (Array.isArray(cond.match)) cond.match.forEach(item => cnt += (orig.match(new RegExp(item, 'g')) || []).length);
-        else cnt += (orig.match(new RegExp(cond.match, 'g')) || []).length;
-    }
-    // console.log(orig, cnt);
-    for (var i = 0; i < targ.length; i++) {
-        var ex = false;
-        if (targ[i] == '\\') {
-            if (flag == 1) {
-                if (command == 'cnt') ret += arg.repeat(cnt);
-                command = arg = '';
-                flag = 0;
-                ex = true;
-            } else if (flag == 0) {
-                flag = 1;
-                ex = true;
-            }
-        }
-        if (targ[i] == '{' && flag == 1) {
-            flag = 2;
-            ex = true;
-        }
-        if (targ[i] == '}' && flag == 2) {
-            if (command == 'cnt') ret += arg.repeat(cnt);
-            command = arg = '';
-            flag = 0;
-            ex = true;
-        }
-        if (!ex) {
-            if (flag == 0) ret += targ[i];
-            if (flag == 1) command += targ[i];
-            if (flag == 2) arg += targ[i];
-        }
-    }
-    if (flag == 1) {
-        if (command == 'cnt') ret += arg.repeat(cnt);
-        command = arg = '';
-        flag = 0;
-    }
-    return ret;
-}
-
-function normalize(x) {
-    return x.replace(/[0-9\.,!~`@\\$%#^&*\(\)-\+=\[\]\{\}:;\'\"\<\>\?/\| ]/g, '').toLowerCase();
-}
-
-// 가나다라힣햏
-function proceed(message, chan, condition) {
-    var msg = normalize(message.content);
-    if (condition.send !== undefined) {
-        if (Array.isArray(condition.send)) condition.send.forEach(item => chan.send(apply(msg, item, condition)));
-        else chan.send(apply(msg, condition.send, condition));
-    }
-    if (condition.sendrandom !== undefined) chan.send(condition.sendrandom[Math.floor(Math.random() * condition.sendrandom.length)]);
-    if (condition.react !== undefined ) {
-        if (Array.isArray(condition.react)) condition.react.forEach(item => message.react(item));
-        else message.react(condition.react);
-    }
-}
-
-function processMessage(message, chan, condition) {
-    var msg = normalize(message.content);
-    if (include(condition.except, message.guild.id)) return;
-    if (condition.in !== undefined && !include(condition.in, message.guild.id)) return;
-    var flag = false;
-    if (include(condition.matchexact, msg)) flag = true;
-    if (condition.match !== undefined) {
-        var matchlist = [ ];
-        if (Array.isArray(condition.match)) matchlist = condition.match;
-        else matchlist = [ condition.match ];
-        matchlist.forEach(item => flag |= msg.includes(item));
-    }
-    if (flag) proceed(message, chan, condition);
-}
-
-function processReact(react, chan, condition) {
-    if (include(condition.except, react.message.guild.id)) return;
-    if (condition.in !== undefined && !include(condition.in, react.message.guild.id)) return;
-    var flag = false;
-    if (include(condition.onreact, react._emoji.name)) flag = true;
-    if (flag) proceed(react.message, chan, condition);
-}
-
 client.on(Events.MessageCreate, message => {
     if (message.author.bot) return;
     // if (inappropriate(message.content)) {
@@ -352,12 +244,12 @@ client.on(Events.MessageCreate, message => {
         manage(message.content.slice(prefix_hanguel.length), message);
         return;
     }
-    messageConditions.forEach(item => processMessage(message, chan, item));
+    processMessageAll(message, chan);
 });
 
 client.on(Events.MessageReactionAdd, (reaction, user) => {
     const chan = client.channels.cache.get(reaction.message.channelId);
-    reactConditions.forEach(item => processReact(reaction, chan, item));
+    processReactAll(reaction, chan);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -387,7 +279,33 @@ client.on(Events.InteractionCreate, async interaction => {
                 await interaction.reply({ content: 'Error while executing command', ephemeral: true });
             }
         }
-    }
+    } else if (interaction.isStringSelectMenu()) {
+        const command = client.commands.get(interaction.message.interaction.commandName);
+        if (!command) return;
+        try {
+            await command.menuSelect(interaction, sql);
+        } catch (error) {
+            console.error(error);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: 'Error while executing command', ephemeral: true });
+            } else {
+                await interaction.reply({ content: 'Error while executing command', ephemeral: true });
+            }
+        }
+    } else if (interaction.isModalSubmit()) {
+        const command = client.commands.get(interaction.message.interaction.commandName);
+        if (!command) return;
+        try {
+            await command.modalSubmit(interaction, sql);
+        } catch (error) {
+            console.error(error);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: 'Error while executing command', ephemeral: true });
+            } else {
+                await interaction.reply({ content: 'Error while executing command', ephemeral: true });
+            }
+        }
+    } 
 });
 
 client.login(token);
@@ -396,204 +314,204 @@ process.on("unhandledRejection", async error => {
     console.error("Promise rejection:", error);
 });
 
-async function getGlicko(id) {
-    var ret = null;
-    await (async () => {
-        return new Promise ((resolve, reject) => {
-            request({
-                uri: 'https://ch.tetr.io/api/users/' + id.toLowerCase(),
-                qs: {}
-            }, (err, res, body) => {
-                if (err) {
-                    resolve();
-                    return;
-                }
-                try {
-                    const qry = JSON.parse(body);
-                    if (!qry.success) {
-                        resolve();
-                        return;
-                    }
-                    ret = {
-                        id: id,
-                        games: qry.data.user.league.gamesplayed,
-                        glicko: qry.data.user.league.glicko,
-                        _id: qry.data.user._id
-                    };
-                } catch (e) {
-                    resolve();
-                    return;
-                }
-                resolve();
-            });
-        });
-    })();
-    return ret;
-}
+// async function getGlicko(id) {
+//     var ret = null;
+//     await (async () => {
+//         return new Promise ((resolve, reject) => {
+//             request({
+//                 uri: 'https://ch.tetr.io/api/users/' + id.toLowerCase(),
+//                 qs: {}
+//             }, (err, res, body) => {
+//                 if (err) {
+//                     resolve();
+//                     return;
+//                 }
+//                 try {
+//                     const qry = JSON.parse(body);
+//                     if (!qry.success) {
+//                         resolve();
+//                         return;
+//                     }
+//                     ret = {
+//                         id: id,
+//                         games: qry.data.user.league.gamesplayed,
+//                         glicko: qry.data.user.league.glicko,
+//                         _id: qry.data.user._id
+//                     };
+//                 } catch (e) {
+//                     resolve();
+//                     return;
+//                 }
+//                 resolve();
+//             });
+//         });
+//     })();
+//     return ret;
+// }
 
-async function getGames(id) {
-    var ret = [ ];
-    await (async () => {
-        return new Promise ((resolve, reject) => {
-            request({
-                uri: 'https://ch.tetr.io/api/streams/league_userrecent_' + id,
-                qs: {}
-            }, (err, res, body) => {
-                if (err) {
-                    resolve();
-                    return;
-                }
-                try {
-                    const qry = JSON.parse(body);
-                    if (!qry.success) {
-                        resolve();
-                        return;
-                    }
-                    ret = qry.data.records;
-                } catch (e) {
-                    resolve();
-                    return;
-                }
-                resolve();
-            });
-        });
-    })();
-    return ret;
-}
+// async function getGames(id) {
+//     var ret = [ ];
+//     await (async () => {
+//         return new Promise ((resolve, reject) => {
+//             request({
+//                 uri: 'https://ch.tetr.io/api/streams/league_userrecent_' + id,
+//                 qs: {}
+//             }, (err, res, body) => {
+//                 if (err) {
+//                     resolve();
+//                     return;
+//                 }
+//                 try {
+//                     const qry = JSON.parse(body);
+//                     if (!qry.success) {
+//                         resolve();
+//                         return;
+//                     }
+//                     ret = qry.data.records;
+//                 } catch (e) {
+//                     resolve();
+//                     return;
+//                 }
+//                 resolve();
+//             });
+//         });
+//     })();
+//     return ret;
+// }
 
-async function setGlicko(x) {
-    await (async () => {
-        return new Promise ((resolve, reject) => {
-            sql.query(`UPDATE LIST SET games = ${x.games}, glicko = ${x.glicko}, price = ${x.price} WHERE id = '${x.id}'`, async function (err, results, fields) {
-                if (err) console.log(err);
-                resolve();
-            });
-        });
-    })();
-}
+// async function setGlicko(x) {
+//     await (async () => {
+//         return new Promise ((resolve, reject) => {
+//             sql.query(`UPDATE LIST SET games = ${x.games}, glicko = ${x.glicko}, price = ${x.price} WHERE id = '${x.id}'`, async function (err, results, fields) {
+//                 if (err) console.log(err);
+//                 resolve();
+//             });
+//         });
+//     })();
+// }
 
-const wins = [ 'overpowered {1}', 'KO\'ed {1}', 'wrecked {1}', 'gave the L to {1}', 'roasted {1}', 'smacked {1}', 'bamboozled {1}', 'memed {1}', 'smashed {1}', 'dominated {1}', 'broke {1}', 'shattered {1} to pieces', 'knocked {1} out', 'stunned {1}', 'eliminated {1}', 'beated {1}', 'defeated {1}', 'overwhelmed {1}', 'conquered {1}', 'outclassed {1}', 'outdid {1}', 'forced {1} to lose' ];
-const loses = [ 'got overpowered by {1}', 'got KO\'ed by {1}', 'got wrecked by {1}', 'took the L to {1}', 'got roasted by {1}', 'got smacked by {1}', 'got bamboozled by {1}', 'got memed by {1}', 'got smashed by {1}', 'got dominated by {1}', 'got broke by {1}', 'got shattered to pieces by {1}', 'got knocked out by {1}', 'got stunned by {1}', 'got eliminated by {1}', 'got beated by {1}', 'got defeated by {1}', 'got overwhelmed by {1}', 'got conquered by {1}', 'got outclassed by {1}', 'got outdone by {1}', 'got forced to lose by {1}' ];
+// const wins = [ 'overpowered {1}', 'KO\'ed {1}', 'wrecked {1}', 'gave the L to {1}', 'roasted {1}', 'smacked {1}', 'bamboozled {1}', 'memed {1}', 'smashed {1}', 'dominated {1}', 'broke {1}', 'shattered {1} to pieces', 'knocked {1} out', 'stunned {1}', 'eliminated {1}', 'beated {1}', 'defeated {1}', 'overwhelmed {1}', 'conquered {1}', 'outclassed {1}', 'outdid {1}', 'forced {1} to lose' ];
+// const loses = [ 'got overpowered by {1}', 'got KO\'ed by {1}', 'got wrecked by {1}', 'took the L to {1}', 'got roasted by {1}', 'got smacked by {1}', 'got bamboozled by {1}', 'got memed by {1}', 'got smashed by {1}', 'got dominated by {1}', 'got broke by {1}', 'got shattered to pieces by {1}', 'got knocked out by {1}', 'got stunned by {1}', 'got eliminated by {1}', 'got beated by {1}', 'got defeated by {1}', 'got overwhelmed by {1}', 'got conquered by {1}', 'got outclassed by {1}', 'got outdone by {1}', 'got forced to lose by {1}' ];
 
-function makedescript(x, w, l) {
-    var str = '';
-    if (w.length != 0 && l.length != 0) {
-        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[0].score).format(x, w[0].user);
-        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[i].score).format(null, w[i].user);
-        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[w.length - 1].score).format(null, w[w.length - 1].user);
-        str += (', and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[0].score).format(null, l[0].user);
-        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[i].score).format(null, l[i].user);
-        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[l.length - 1].score + '.').format(null, l[l.length - 1].user);
-    } else if (w.length != 0) {
-        str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[0].score).format(x, w[0].user);
-        for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[i].score).format(null, w[i].user);
-        if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[w.length - 1] + '.').format(null, w[w.length - 1].user);
-    } else if (l.length != 0) {
-        str += ('{0} ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[0].score).format(x, l[0].user);
-        for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[i].score).format(null, l[i].user);
-        if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[l.length - 1] + '.').format(null, l[l.length - 1].user);
-    } else str = 'But nobody came to {0}.'.format(x);
-    return str;
-}
+// function makedescript(x, w, l) {
+//     var str = '';
+//     if (w.length != 0 && l.length != 0) {
+//         str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[0].score).format(x, w[0].user);
+//         for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[i].score).format(null, w[i].user);
+//         if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[w.length - 1].score).format(null, w[w.length - 1].user);
+//         str += (', and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[0].score).format(null, l[0].user);
+//         for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[i].score).format(null, l[i].user);
+//         if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[l.length - 1].score + '.').format(null, l[l.length - 1].user);
+//     } else if (w.length != 0) {
+//         str += ('{0} ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[0].score).format(x, w[0].user);
+//         for (var i = 1; i < w.length - 1; i++) str += (', ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[i].score).format(null, w[i].user);
+//         if (w.length > 1) str += (' and ' + wins[Math.floor(Math.random() * wins.length)] + ' with the score of ' + w[w.length - 1] + '.').format(null, w[w.length - 1].user);
+//     } else if (l.length != 0) {
+//         str += ('{0} ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[0].score).format(x, l[0].user);
+//         for (var i = 1; i < l.length - 1; i++) str += (', ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[i].score).format(null, l[i].user);
+//         if (l.length > 1) str += (' and ' + loses[Math.floor(Math.random() * loses.length)] + ' with the score of ' + l[l.length - 1] + '.').format(null, l[l.length - 1].user);
+//     } else str = 'But nobody came to {0}.'.format(x);
+//     return str;
+// }
 
-async function checkDiff() {
-    sql.query('SELECT id, games, glicko, price FROM LIST', async function (err, results, fields) {
-        if (err) {
-            console.log(err);
-            return;
-        }
-        var embedList = null;
-        var sumPrice = 0, sumGlicko = 0;
-        results.forEach(function (item) {
-            sumPrice += item.price;
-            sumGlicko += item.glicko;
-        });
-        for (const item of results) {
-            const curr = await getGlicko(item.id);
-            if (curr === null) continue;
-            if (curr.games <= item.games) continue;
-            var gamecnt = curr.games - item.games;
-            var embed = new EmbedBuilder ();
-            embed.setColor(0x009900)
-            .setTitle('주가 변동 알림');
-            const games = await getGames(curr._id);
-            var cnt = Math.min(gamecnt, games.length);
-            var w = [ ], l = [ ];
-            for (var i = 0; i < cnt; i++) {
-                var won = {
-                    user: games[i].endcontext[0].user.username.toUpperCase(),
-                    wins: games[i].endcontext[0].wins
-                };
-                var lost = {
-                    user: games[i].endcontext[1].user.username.toUpperCase(),
-                    wins: games[i].endcontext[1].wins
-                }
-                if (won.user != item.id) {
-                    l.push({
-                        user: won.user,
-                        score: `${lost.wins} : ${won.wins}`
-                    });
-                } else {
-                    w.push({
-                        user: lost.user,
-                        score: `${won.wins} : ${lost.wins}`
-                    });
-                }
-            }
-            embed.setDescription('**' + makedescript(item.id, w, l) + '**');
-            var newSumGlicko = sumGlicko - item.glicko + curr.glicko;
-            var differences = [ ];
-            for (const item2 of results) {
-                var newGlicko = item2.glicko;
-                var newGames = item2.games;
-                if (item2.id == item.id) {
-                    newGlicko = curr.glicko;
-                    newGames = curr.games;
-                }
-                var newPrice = sumPrice / newSumGlicko * newGlicko;
-                await setGlicko({
-                    id: item2.id,
-                    games: newGames,
-                    glicko: newGlicko,
-                    price: newPrice
-                });
-                differences.push({
-                    id: item2.id,
-                    difference: Math.abs(item2.price - newPrice),
-                    _old: item2.price,
-                    _new: newPrice
-                });
-            }
-            differences.sort(function (a, b) {
-                return b.difference - a.difference;
-            });
-            var printCnt = Math.min(5, differences.length);
-            for (var i = 0; i < printCnt; i++) {
-                var _old = differences[i]._old.toFixed(0);
-                var _new = differences[i]._new.toFixed(0);
-                var color = '⚫';
-                if (_new > _old) color = '🔴';
-                if (_new < _old) color = '🔵';
-                embed.addFields({
-                    name: differences[i].id,
-                    value: `${_new} (${color} ${Math.abs(_new - _old)})`
-                });
-            }
-            //🔵🔴⚫
-            embedList = embed;
-            sql.query('SELECT id FROM NOTIFY', async function (err, results, fiends) {
-                if (err) {
-                    console.log(err);
-                    return;
-                }
-                for (var i = 0; i < results.length; i++) {
-                    var chan = client.channels.cache.get(results[i].id);
-                    await chan.send({ embeds: [ embedList ] });
-                }
-            });
-        }
-    });
-}
+// async function checkDiff() {
+//     sql.query('SELECT id, games, glicko, price FROM LIST', async function (err, results, fields) {
+//         if (err) {
+//             console.log(err);
+//             return;
+//         }
+//         var embedList = null;
+//         var sumPrice = 0, sumGlicko = 0;
+//         results.forEach(function (item) {
+//             sumPrice += item.price;
+//             sumGlicko += item.glicko;
+//         });
+//         for (const item of results) {
+//             const curr = await getGlicko(item.id);
+//             if (curr === null) continue;
+//             if (curr.games <= item.games) continue;
+//             var gamecnt = curr.games - item.games;
+//             var embed = new EmbedBuilder ();
+//             embed.setColor(0x009900)
+//             .setTitle('주가 변동 알림');
+//             const games = await getGames(curr._id);
+//             var cnt = Math.min(gamecnt, games.length);
+//             var w = [ ], l = [ ];
+//             for (var i = 0; i < cnt; i++) {
+//                 var won = {
+//                     user: games[i].endcontext[0].user.username.toUpperCase(),
+//                     wins: games[i].endcontext[0].wins
+//                 };
+//                 var lost = {
+//                     user: games[i].endcontext[1].user.username.toUpperCase(),
+//                     wins: games[i].endcontext[1].wins
+//                 }
+//                 if (won.user != item.id) {
+//                     l.push({
+//                         user: won.user,
+//                         score: `${lost.wins} : ${won.wins}`
+//                     });
+//                 } else {
+//                     w.push({
+//                         user: lost.user,
+//                         score: `${won.wins} : ${lost.wins}`
+//                     });
+//                 }
+//             }
+//             embed.setDescription('**' + makedescript(item.id, w, l) + '**');
+//             var newSumGlicko = sumGlicko - item.glicko + curr.glicko;
+//             var differences = [ ];
+//             for (const item2 of results) {
+//                 var newGlicko = item2.glicko;
+//                 var newGames = item2.games;
+//                 if (item2.id == item.id) {
+//                     newGlicko = curr.glicko;
+//                     newGames = curr.games;
+//                 }
+//                 var newPrice = sumPrice / newSumGlicko * newGlicko;
+//                 await setGlicko({
+//                     id: item2.id,
+//                     games: newGames,
+//                     glicko: newGlicko,
+//                     price: newPrice
+//                 });
+//                 differences.push({
+//                     id: item2.id,
+//                     difference: Math.abs(item2.price - newPrice),
+//                     _old: item2.price,
+//                     _new: newPrice
+//                 });
+//             }
+//             differences.sort(function (a, b) {
+//                 return b.difference - a.difference;
+//             });
+//             var printCnt = Math.min(5, differences.length);
+//             for (var i = 0; i < printCnt; i++) {
+//                 var _old = differences[i]._old.toFixed(0);
+//                 var _new = differences[i]._new.toFixed(0);
+//                 var color = '⚫';
+//                 if (_new > _old) color = '🔴';
+//                 if (_new < _old) color = '🔵';
+//                 embed.addFields({
+//                     name: differences[i].id,
+//                     value: `${_new} (${color} ${Math.abs(_new - _old)})`
+//                 });
+//             }
+//             //🔵🔴⚫
+//             embedList = embed;
+//             sql.query('SELECT id FROM NOTIFY', async function (err, results, fiends) {
+//                 if (err) {
+//                     console.log(err);
+//                     return;
+//                 }
+//                 for (var i = 0; i < results.length; i++) {
+//                     var chan = client.channels.cache.get(results[i].id);
+//                     await chan.send({ embeds: [ embedList ] });
+//                 }
+//             });
+//         }
+//     });
+// }
 
-const interv = 30;
-setInterval(checkDiff, interv * 1000);
+// const interv = 30;
+// setInterval(checkDiff, interv * 1000);

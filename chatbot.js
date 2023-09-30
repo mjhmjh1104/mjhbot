@@ -91,6 +91,12 @@ function processMessage(message, chan, condition) {
         else matchlist = [ condition.match ];
         matchlist.forEach(item => flag |= new RegExp(item, 'g').test(msg));
     }
+    if (condition.mention !== undefined) {
+        var mentionlist = [ ];
+        if (Array.isArray(condition.mention)) mentionlist = condition.mention;
+        else mentionlist = [ conditoin.mention ];
+        mentionlist.forEach(item => flag |= message.mentions.has(item));
+    }
     if (condition.chance !== undefined) {
         var ch = parseFloat(condition.chance);
         var rand = Math.random() * 100;
@@ -126,8 +132,8 @@ module.exports = {
         for (const item of results) {
             var curr = JSON.parse(item.content);
             curr.in = item.server;
-            if (curr.match != undefined || curr.matchexact != undefined) messageConditions.push(curr);
-            if (curr.onreact != undefined) reactConditions.push(curr);
+            if (curr.match !== undefined || curr.matchexact !== undefined || curr.mention !== undefined) messageConditions.push(curr);
+            if (curr.onreact !== undefined) reactConditions.push(curr);
         }
     },
 }

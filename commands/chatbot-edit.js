@@ -188,7 +188,7 @@ module.exports = {
                         id = item.value;
                         created = false;
                     }
-                }  else {
+                } else {
                     cnt++;
                     for (const command of commandList) if (command.label == item.name) {
                         if (content[command.value] === undefined) content[command.value] = [];
@@ -240,6 +240,14 @@ module.exports = {
             return;
         }
         if (interaction.customId == 'trigger') {
+            if (interaction.values[0] == 'cancel') {
+                var embed = new EmbedBuilder ()
+                    .setColor(0x990000)
+                    .setTitle('취소됨');
+                interaction.message.edit({ embeds: [ embed ], components: [ ] });
+                interaction.deferUpdate();
+                return;
+            }
             await interaction.message.edit({ components: [ ] });
             var embed = new EmbedBuilder (interaction.message.embeds[0])
                 .addFields({

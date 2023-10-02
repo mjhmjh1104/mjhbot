@@ -78,9 +78,6 @@ function getDailyRandom(content, date, user, len) {
         else num += (k - 97 + 10);
         num %= len;
     }
-    console.log(script);
-    console.log(hashed);
-    console.log(num);
     return num % len;
 }
 

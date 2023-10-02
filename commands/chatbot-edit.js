@@ -52,6 +52,12 @@ const commandList = [
         description: '지정한 메시지 중 하나를 보내기',
         value: 'sendrandom',
         modal: '보낼 메시지를 지정'
+    },
+    {
+        label: '행동: 랜덤(일별)',
+        description: '지정한 메시지 중 하나를 보내기',
+        value: 'sendrandomdaily',
+        modal: '보낼 메시지를 지정'
     }
 ];
 

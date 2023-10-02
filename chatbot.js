@@ -1,3 +1,5 @@
+const md5 = require('md5');
+
 var messageConditions = [ ];
 var reactConditions = [ ];
 
@@ -65,6 +67,23 @@ function apply(orig, targ, cond) {
     return ret;
 }
 
+function getDailyRandom(content, date, user, len) {
+    const script = content + date + user;
+    const hashed = md5(script);
+    var num = 0;
+    for (var i = 0; i < hashed.length; i++) {
+        num *= 16;
+        const k = hashed[i].charCodeAt();
+        if (k >= 48 && k <= 57) num += (k - 48);
+        else num += (k - 97 + 10);
+        num %= len;
+    }
+    console.log(script);
+    console.log(hashed);
+    console.log(num);
+    return num % len;
+}
+
 // 가나다라힣햏
 function proceed(message, chan, condition) {
     var msg = normalize(message.content);
@@ -73,6 +92,7 @@ function proceed(message, chan, condition) {
         else chan.send(apply(msg, condition.send, condition));
     }
     if (condition.sendrandom !== undefined) chan.send(condition.sendrandom[Math.floor(Math.random() * condition.sendrandom.length)]);
+    if (condition.sendrandomdaily !== undefined) chan.send(condition.sendrandomdaily[getDailyRandom(message.content, new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Shanghai' }), message.author.id, condition.sendrandomdaily.length)]);
     if (condition.react !== undefined ) {
         if (Array.isArray(condition.react)) condition.react.forEach(item => message.react(item));
         else message.react(condition.react);

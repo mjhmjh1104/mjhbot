@@ -11,7 +11,7 @@ function include(x, y) {
 }
 
 function normalize(x) {
-    return x.replace(/[0-9\.,!~`@\\$%#^&*\(\)-\+=\[\]\{\}:;\'\"\<\>\?/\| ]/g, '').toLowerCase();
+    return x.replace(/[0-9\.,!~`@\\$%#^&*\(\)\-\+=\[\]\{\}:;\'\"\<\>\?/\| ]/g, '').toLowerCase();
 }
 
 function apply(orig, targ, cond) {
@@ -68,7 +68,7 @@ function apply(orig, targ, cond) {
 }
 
 function getDailyRandom(content, date, user, len) {
-    const script = content + date + user;
+    const script = contentx.replace(/[\.,!~`@\\$%#^&*\(\)\-\+=\[\]\{\}:;\'\"\?/\| ]/g, '').toLowerCase(); + date + user;
     const hashed = md5(script);
     var num = 0;
     for (var i = 0; i < hashed.length; i++) {

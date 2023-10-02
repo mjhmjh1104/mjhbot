@@ -136,7 +136,7 @@ module.exports = {
         } else if (interaction.customId == 'add') {
             var select = new StringSelectMenuBuilder ()
                 .setCustomId('type')
-                .setPlaceholder('추가할 옵션 선택')
+                .setPlaceholder('추가할 속성 선택')
             for (const item of commandList) {
                 select.addOptions(
                     new StringSelectMenuOptionBuilder ()
@@ -159,7 +159,7 @@ module.exports = {
         } else if (interaction.customId == 'remove') {
             var select = new StringSelectMenuBuilder ()
                 .setCustomId('remove')
-                .setPlaceholder('제거할 옵션 선택')
+                .setPlaceholder('제거할 속성 선택')
             var k = 0;
             if (interaction.message.embeds[0].data.fields) for (const item of interaction.message.embeds[0].data.fields) {
                 for (const command of commandList) if (command.label === item.name) {

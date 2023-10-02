@@ -68,7 +68,7 @@ function apply(orig, targ, cond) {
 }
 
 function getDailyRandom(content, date, user, len) {
-    const script = contentx.replace(/[\.,!~`@\\$%#^&*\(\)\-\+=\[\]\{\}:;\'\"\?/\| ]/g, '').toLowerCase(); + date + user;
+    const script = content.replace(/[\.,!~`@\\$%#^&*\(\)\-\+=\[\]\{\}:;\'\"\?/\| ]/g, '').toLowerCase(); + date + user;
     const hashed = md5(script);
     var num = 0;
     for (var i = 0; i < hashed.length; i++) {

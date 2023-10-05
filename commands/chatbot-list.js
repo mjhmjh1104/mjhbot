@@ -20,10 +20,21 @@ module.exports = {
         embed.setColor(0x009900)
         .setTitle('트리거 목록')
         .setDescription(`${results.length} 개의 트리거`);
-        results.forEach(item => embed.addFields({
-            name: `${item.lastmodified}(${item.lastmodifieduser})`,
-            value: `${item.content.substring(0, 64)} ...`
-        }));
+        results.forEach(function (item) {
+            console.log(item.lastmodifieduser);
+            console.log(interaction.guild.members.cache);
+            const crew = interaction.guild.members.cache.get(item.lastmodifieduser);
+            var displayname = item.lastmodifieduser;
+            if (crew) {
+                var nickname = crew.nickname;
+                if (!nickname) nickname = crew.user.globalName;
+                displayname = nickname;
+            }
+            return embed.addFields({
+                name: `${displayname}가 마지막으로 수정한 트리거`,
+                value: `${item.content.substring(0, 64)} ...`
+            });
+        });
         interaction.reply({ embeds: [ embed ] });
     },
 };

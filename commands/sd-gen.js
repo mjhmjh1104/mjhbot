@@ -27,7 +27,8 @@ module.exports = {
         return JSON.parse(await request(options));
     },
     async execute(interaction, sql) {
-        const steps = interaction.options.getInteger('단계') | 25;
+        var steps = interaction.options.getInteger('단계');
+        if (!steps) steps = 25;
         const result = await this.progress();
         const eta = parseFloat(result.eta_relative);
         const job = result.state.job;

@@ -67,7 +67,12 @@ module.exports = {
             const job = result.state.job;
             const sampling = parseInt(result.state.sampling_step);
             const total = parseInt(result.state.sampling_steps);
+            const current_image = result.current_image;
             await interaction.editReply(`Worker in ${job}: ${eta.toFixed()} seconds estimated; ${(progress * 100).toFixed(2)}% done; ${sampling} of ${total}`)
+            if (updating && current_image) {
+                await fs.writeFile('tmp/SPOILER_out.png', current_image, 'base64');
+                await interaction.editReply({ files: [ { attachment: 'tmp/SPOILER_out.png' } ] });
+            }
         }, 5000);
         request(options).then(async function (result) {
             updating = false;

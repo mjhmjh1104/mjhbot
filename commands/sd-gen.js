@@ -13,9 +13,9 @@ module.exports = {
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('단계')
-                .setDescription('단계 수를 1 이상 30 이하로 입력합니다.')
+                .setDescription('단계 수를 1 이상 50 이하로 입력합니다.')
                 .setMinValue(1)
-                .setMaxValue(30)),
+                .setMaxValue(50)),
     async progress() {
         const url = "http://146.56.100.136:3001/sdapi/v1/progress";
         const options = {
@@ -59,6 +59,7 @@ module.exports = {
         await interaction.reply('생성 중');
         const thisProgress = this.progress;
         var updating = true;
+        var curr_image = null;
         const interval = setInterval(async function () {
             if (!updating) return;
             const result = await thisProgress();
@@ -69,7 +70,8 @@ module.exports = {
             const total = parseInt(result.state.sampling_steps);
             const current_image = result.current_image;
             await interaction.editReply(`Worker in ${job}: ${eta.toFixed()} seconds estimated; ${(progress * 100).toFixed(2)}% done; ${sampling} of ${total}`)
-            if (updating && current_image) {
+            if (updating && current_image && current_image != curr_image) {
+                curr_image = current_image;
                 await fs.writeFile('tmp/SPOILER_out.png', current_image, 'base64');
                 await interaction.editReply({ files: [ { attachment: 'tmp/SPOILER_out.png' } ] });
             }

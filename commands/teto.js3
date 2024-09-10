@@ -1,0 +1,61 @@
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, TextInputStyle } = require('discord.js');
+const request = require('request');
+const mysql = require('mysql2/promise');
+const htmlToImg = require('node-html-to-image');
+
+module.exports = {
+    data: new SlashCommandBuilder ()
+        .setName('teto')
+        .setDescription('Tetr.io 계정 정보를 봅니다.')
+        .addStringOption(option =>
+            option.setName('id')
+                .setDescription('Tetr.io 계정을 입력합니다.')
+                .setRequired(true)),
+    async execute(interaction, sql) {
+        request({
+            uri: `https://ch.tetr.io/api/users/${interaction.options.getString('id').toLowerCase()}`,
+            qs: {}
+        }, async function (err, res, body) {
+            if (err) {
+                var embed = new EmbedBuilder ()
+                    .setColor(0x990000)
+                    .setTitle('서버 오류');
+                interaction.reply({ embeds: [ embed ] });
+                return;
+            }
+            try {
+                const qry = JSON.parse(body);
+                if (!qry.success) {
+                    var embed = new EmbedBuilder ()
+                        .setColor(0x990000)
+                        .setTitle('유저 없음');
+                    interaction.reply({ embeds: [ embed ] });
+                    return;
+                }
+                var embed = new EmbedBuilder ()
+                        .setColor(0x009900)
+                        .setTitle('쿼리 중');
+                interaction.reply({ embeds: [ embed ] });
+                console.log(qry.data.user);
+                var str = '';
+                str += 'Won ' + qry.data.user.gameswon + ' of ' + qry.data.user.gamesplayed + ' games\n';
+                str += 'Played for ' + (qry.data.user.gametime / 3600).toFixed(1) + ' hours\n';
+                str += 'Rating: ' + qry.data.user.league.rating.toFixed(2) + '\n';
+                str += 'Glicko: ' + qry.data.user.league.glicko.toFixed(2) + '\n';
+                await htmlToImg({
+                    output: 'tmp/teto.png',
+                    html: '<html><head></head><body style="background: bottom left / 300px 50px repeat-x url(/res/footer.png), #0F160D;"><div><div style="color: #9CCA95; font-size: 3em; font-weight: 900; font-family: \'HUN\'; ">{{ name }}<img src="https://tetr.io/res/flags/{{ country }}.png" style="display: inline-block; height: 0.6em; vertical-align: middle; margin-left: 0.15em; clip-path: polygon(0.1em 0, calc(100% - 0.1em) 0, 100% 0.1em, 100% calc(100% - 0.1em), calc(100% - 0.1em) 100%, 0.1em 100%, 0 calc(100% - 0.1em), 0 0.1em);"></div></div></body></html>',
+                    content: { name: qry.data.user.username.toUpperCase(), user: qry.data.user, country: qry.data.user.country.toLowerCase() }
+                });
+                await interaction.editReply({ embeds: [ ], files: [ { attachment: 'tmp/teto.png' } ] });
+
+            } catch (e) {
+                var embed = new EmbedBuilder ()
+                    .setColor(0x990000)
+                    .setTitle('오류');
+                interaction.editReply({ embeds: [ embed ] });
+                return;
+            }
+        });
+    },
+};

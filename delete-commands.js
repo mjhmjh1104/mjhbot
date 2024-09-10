@@ -7,7 +7,7 @@ const rest = new REST().setToken(token);
 
 (async () => {
     try {
-        const id = '1157590748905078826';
+        const id = '1159494289659805777';
         const data = await rest.delete(Routes.applicationCommands(clientId) + '/' + id);
     } catch (error) {
         // And of course, make sure you catch and log any errors!

@@ -47,6 +47,7 @@ sql.query('CREATE TABLE IF NOT EXISTS COMMANDS (id CHAR(32) PRIMARY KEY, server 
 sql.query('CREATE TABLE IF NOT EXISTS NOTIFY (id CHAR(100) NOT NULL UNIQUE)');
 sql.query('CREATE TABLE IF NOT EXISTS MANAGING (server VARCHAR(25) NOT NULL UNIQUE, lim INTEGER NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)');
 sql.query('CREATE TABLE IF NOT EXISTS MANAGING_CHAN (server VARCHAR(25) NOT NULL, channel VARCHAR(25) NOT NULL UNIQUE, date DATE NOT NULL, cnt INTEGER NOT NULL DEFAULT 0)');
+sql.query('CREATE TABLE IF NOT EXISTS BLOCK (id CHAR(100) NOT NULL UNIQUE)');
 
 loadConditions(sql);
 
@@ -97,99 +98,6 @@ async function manage(command, message) {
     console.log(args);
     if (args.length == 0) return;
     const cmd = args.shift().toLowerCase();
-    
-    // if (cmd == "상장" || cmd == "tkdwkd" || cmd == "리스트" || cmd == "list") {
-    //     if (args.length < 1) {
-    //         message.reply('Wrong query');
-    //         return;
-    //     }
-    //     request({
-    //         uri: 'https://ch.tetr.io/api/users/' + args[0],
-    //         qs: {}
-    //     }, (err, res, body) => {
-    //         if (err) {
-    //             message.reply('Error on server');
-    //             return;
-    //         }
-    //         try {
-    //             const qry = JSON.parse(body);
-    //             if (!qry.success) {
-    //                 message.reply('No such user');
-    //                 return;
-    //             }
-    //             str = '';
-    //             var username = qry.data.user.username;
-    //             var glicko = qry.data.user.league.glicko;
-    //             str += username + '(Glicko ' + glicko + ') 상장합니까?\n';
-    //             const rep = message.reply(str);
-    //         } catch (e) {
-    //             message.reply('Error on processing query');
-    //             return;
-    //         }
-    //     });
-    //     return;
-    // }
-    // if (cmd == "오마" || cmd == "코키치" || cmd == "dhak" || cmd == "zhzlcl" || cmd == "ouma" || cmd == "oma" || cmd == "kokichi" || cmd == "ㅐㅕㅡㅁ" || cmd == "ㅐㅡㅁ" || cmd == "ㅏㅐㅏㅑ초ㅑ" || cmd == "王馬" || cmd == "小吉" || cmd == "王馬小吉" || cmd == "오마코키치" || cmd == "dhakzhzlcl") {
-    //     try {
-    //         console.log(args);
-    //         if (args.length == 0) return;
-    //         if (args.length > 0 && args[0] == 'AUTH') {
-    //             if (characterAI.isAuthenticated()) {
-    //                 message.reply('이미 생성됨');
-    //                 return;
-    //             } else {
-    //                 await message.reply('세션 생성 중');
-    //                 var tok = caToken;
-    //                 if (args.length > 1) tok = args[1];
-    //                 await characterAI.authenticateWithToken(tok);
-    //                 await message.reply('세션 생성 완료, 연결 중');
-    //                 chat = await characterAI.createOrContinueChat(characterId);
-    //                 message.reply('연결 완료');
-    //                 return;
-    //             }
-    //         }
-    //         if (args.length > 0 && args[0] == 'DESTROY') {
-    //             if (characterAI.isAuthenticated()) {
-    //                 message.reply('세션 파기 중');
-    //                 await characterAI.unauthenticate();
-    //                 message.reply('세션 파기 완료');
-    //                 return;
-    //             } else {
-    //                 message.reply('생성되지 않음');
-    //                 return;
-    //             }
-    //         }
-    //         if (!characterAI.isAuthenticated()) {
-    //             message.reply('세션 없음');
-    //             return;
-    //         }
-    //         if (args.length > 0 && args[0] == 'RESET') {
-    //             message.reply('초기화 중');
-    //             await chat.saveAndStartNewChat();
-    //             message.reply('초기화 완료');
-    //             return;
-    //         }
-    //         if (args.length > 0) script = args.join(' ');
-    //         message.reply('User: ' + script);
-    //         const response = await chat.sendAndAwaitResponse(script, true)
-    //         console.log(response.text);
-    //         message.reply('Kokichi Oma: ' + response.text);
-    //     } catch (e) {
-    //         if (e && e.text) message.reply('나중에 시도하십시오');
-    //         else message.reply('오류 발생: ' + e.toString().substring(0, 2000));
-    //     }
-    //     return;
-    // }
-    // if (cmd == "그림" || cmd == "이미지" || cmd == "로리" || cmd == "img" || cmd == "image" || cmd == "loli") {
-    //     if (args.length == 0) return;
-    //     var result = await generateArt(args.join(' '));
-    //     while (result === null) {
-    //         message.reply('재시도 중');
-    //         result = await generateArt(args.join(' '));
-    //     }
-    //     message.reply(result);
-    //     return;
-    // }
     // if (cmd == "정보") {
     //     const guild = message.guild;
     //     const channels = guild.channels.cache;
@@ -223,7 +131,7 @@ async function countMessage(message, chan) {
     const chanId = chan.id;
     const guildId = chan.guildId;
     const [ results, fields ] = await sql.query(`SELECT COUNT(1) FROM MANAGING WHERE server = ${mysql.escape(guildId)};`);
-    if (results.length === 0) return;
+    if (results[0]['COUNT(1)'] === 0) return;
     const messages = await chan.messages.fetch({ limit: 100 });
     const oneMinuteAgo = Date.now() - 60000;
     const recentMessages = messages.filter(msg => msg.createdTimestamp >= oneMinuteAgo);
@@ -234,10 +142,6 @@ async function countMessage(message, chan) {
 
 client.on(Events.MessageCreate, message => {
     if (message.author.bot) return;
-    // if (inappropriate(message.content)) {
-    //     message.delete();
-    //     return;
-    // }
     const chan = client.channels.cache.get(message.channelId);
     if (message.content.startsWith(prefix)) {
         manage(message.content.slice(prefix.length), message);
@@ -248,7 +152,11 @@ client.on(Events.MessageCreate, message => {
         return;
     }
     countMessage(message, chan);
-    processMessageAll(message, chan);
+    (async function () {
+        const [ results, fields ] = await sql.query(`SELECT COUNT(1) FROM BLOCK WHERE id = ${mysql.escape(message.author.id)};`);
+        if (results[0]['COUNT(1)'] !== 0) return;
+        processMessageAll(message, chan);
+    })();
 });
 
 client.on(Events.MessageReactionAdd, (reaction, user) => {
@@ -356,12 +264,12 @@ async function manageChannels() {
                     dt.setDate(dt.getDate() - 1);
                 }
                 if (!valid) {
-                    await sql.query(`DELETE FROM MANAGING)CHAN WHERE server = ${mysql.escape(server['server'])} AND channel = ${mysql.escape(id)} AND date = '${item['date'].getFullYear()}-${item['date'].getMonth() + 1}-${item['date'].getDate()}'`);
+                    await sql.query(`DELETE FROM MANAGING_CHAN WHERE server = ${mysql.escape(server['server'])} AND channel = ${mysql.escape(id)} AND date = '${item['date'].getFullYear()}-${item['date'].getMonth() + 1}-${item['date'].getDate()}'`);
                     continue;
                 }
                 curr += item['cnt'];
             }
-            if (curr >= server) {
+            if (curr >= server['lim']) {
                 await item.setParent(big);
                 bigs.push([ curr, item ]);
             } else if (curr == 0) {
@@ -402,7 +310,7 @@ async function manageChannels() {
 
 function setChecker() {
     var now = new Date();
-    var millisTill10 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0) - now;
+    var millisTill10 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0, 0) - now;
     while (millisTill10 < 0) millisTill10 += 86400000;
     setTimeout(manageChannels, millisTill10);
 }

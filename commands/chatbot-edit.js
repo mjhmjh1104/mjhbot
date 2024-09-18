@@ -36,6 +36,12 @@ const commandList = [
         modal: '0과 100 사이의 수로 확률을 지정'
     },
     {
+        label: '한정: 채널',
+        description: '지정한 채널에서만',
+        value: 'channel',
+        modal: '채널의 정수 아이디를 지정'
+    },
+    {
         label: '행동: 반응',
         description: '지정한 이모지로 반응하기',
         value: 'react',

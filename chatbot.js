@@ -89,7 +89,7 @@ function proceed(message, chan, condition) {
         else chan.send(apply(msg, condition.send, condition));
     }
     if (condition.sendrandom !== undefined) chan.send(condition.sendrandom[Math.floor(Math.random() * condition.sendrandom.length)]);
-    if (condition.sendrandomdaily !== undefined) chan.send(condition.sendrandomdaily[getDailyRandom(message.content, new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Shanghai' }), message.author.id, condition.sendrandomdaily.length)]);
+    if (condition.sendrandomdaily !== undefined) chan.send(condition.sendrandomdaily[getDailyRandom(message.content, new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Shanghai' }), message.mentions.users.size === 0 && message.mentions.roles.size === 0 && !message.mentions.everyone ? message.author.id : '0', condition.sendrandomdaily.length)]);
     if (condition.react !== undefined ) {
         if (Array.isArray(condition.react)) condition.react.forEach(item => message.react(item));
         else message.react(condition.react);
@@ -100,6 +100,7 @@ function processMessage(message, chan, condition) {
     var msg = normalize(message.content);
     if (include(condition.except, message.guild.id)) return;
     if (condition.in !== undefined && !include(condition.in, message.guild.id)) return;
+    if (condition.channel !== undefined && !include(condition.channel, message.channelId)) return;
     var flag = false;
     if (include(condition.matchexact, msg)) flag = true;
     if (condition.match !== undefined) {

@@ -14,6 +14,8 @@ const { processMessageAll, processReactAll, loadConditions } = require('./chatbo
 const characterId = "0PvjXF5wB6TrNOlbtvWZ48gRgeYR_58vCHnQRxFcNao";
 var char;
 
+const padZero = (num) => (num < 10 ? '0' + num : num);
+
 client.commands = new Collection ();
 
 const positives = "best quality, masterpiece, ";
@@ -46,7 +48,7 @@ sql.query('CREATE TABLE IF NOT EXISTS LIST (id CHAR(100) NOT NULL UNIQUE, games 
 sql.query('CREATE TABLE IF NOT EXISTS COMMANDS (id CHAR(32) PRIMARY KEY, server VARCHAR(25) NOT NULL, content TEXT, lastmodified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, lastmodifieduser VARCHAR(50) NOT NULL)');
 sql.query('CREATE TABLE IF NOT EXISTS NOTIFY (id CHAR(100) NOT NULL UNIQUE)');
 sql.query('CREATE TABLE IF NOT EXISTS MANAGING (server VARCHAR(25) NOT NULL UNIQUE, lim INTEGER NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)');
-sql.query('CREATE TABLE IF NOT EXISTS MANAGING_CHAN (server VARCHAR(25) NOT NULL, channel VARCHAR(25) NOT NULL UNIQUE, date DATE NOT NULL, cnt INTEGER NOT NULL DEFAULT 0)');
+sql.query('CREATE TABLE IF NOT EXISTS MANAGING_CHAN (server VARCHAR(25) NOT NULL, channel VARCHAR(25) NOT NULL, date DATE NOT NULL, cnt INTEGER NOT NULL DEFAULT 0)');
 sql.query('CREATE TABLE IF NOT EXISTS BLOCK (id CHAR(100) NOT NULL UNIQUE)');
 
 loadConditions(sql);
@@ -137,7 +139,7 @@ async function countMessage(message, chan) {
     const recentMessages = messages.filter(msg => msg.createdTimestamp >= oneMinuteAgo);
     const cnt = recentMessages.size;
     const dt = new Date ();
-    await sql.query(`INSERT INTO MANAGING_CHAN (server, channel, date, cnt) VALUES (${mysql.escape(guildId)}, ${mysql.escape(chanId)}, '${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.getDate()}', ${mysql.escape(cnt)}) ON DUPLICATE KEY UPDATE cnt = cnt + ${mysql.escape(cnt)};`);
+    await sql.query(`INSERT INTO MANAGING_CHAN (server, channel, date, cnt) VALUES (${mysql.escape(guildId)}, ${mysql.escape(chanId)}, '${dt.getFullYear()}-${padZero(dt.getMonth() + 1)}-${padZero(dt.getDate())}', ${mysql.escape(cnt)}) ON DUPLICATE KEY UPDATE cnt = cnt + ${mysql.escape(cnt)};`);
 }
 
 client.on(Events.MessageCreate, message => {
@@ -264,7 +266,7 @@ async function manageChannels() {
                     dt.setDate(dt.getDate() - 1);
                 }
                 if (!valid) {
-                    await sql.query(`DELETE FROM MANAGING_CHAN WHERE server = ${mysql.escape(server['server'])} AND channel = ${mysql.escape(id)} AND date = '${item['date'].getFullYear()}-${item['date'].getMonth() + 1}-${item['date'].getDate()}'`);
+                    await sql.query(`DELETE FROM MANAGING_CHAN WHERE server = ${mysql.escape(server['server'])} AND channel = ${mysql.escape(id)} AND date = '${item['date'].getFullYear()}-${padZero(item['date'].getMonth() + 1)}-${padZero(item['date'].getDate())}'`);
                     continue;
                 }
                 curr += item['cnt'];
